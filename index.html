@@ -6,6 +6,11 @@
   <title>AniPulse - MAL Sync</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Cache la barre de défilement pour les filtres */
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
@@ -17,6 +22,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen pb-20">
   
+  <!-- En-tête -->
   <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-2">
       <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold"><i class="fa-solid fa-play"></i></div>
@@ -27,9 +33,20 @@
     </div>
   </header>
 
+  <!-- Contenu Principal -->
   <main class="p-4">
-    <h1 id="page-title" class="text-xl font-bold mb-6"><span class="text-indigo-500 mr-2">●</span>Top Animes</h1>
+    <h1 id="page-title" class="text-xl font-bold mb-4"><span class="text-indigo-500 mr-2">●</span>Top Animes</h1>
     
+    <!-- Barre de filtres (Cachée par défaut) -->
+    <div id="watchlist-filters" class="hidden flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-hide whitespace-nowrap">
+      <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white transition">Tous</button>
+      <button onclick="setFilter('watching')" id="filter-watching" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En cours</button>
+      <button onclick="setFilter('plan_to_watch')" id="filter-plan_to_watch" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">À voir</button>
+      <button onclick="setFilter('completed')" id="filter-completed" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Terminé</button>
+      <button onclick="setFilter('on_hold')" id="filter-on_hold" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En pause</button>
+      <button onclick="setFilter('dropped')" id="filter-dropped" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Abandonné</button>
+    </div>
+
     <div id="main-content">
       <div class="flex flex-col items-center py-20">
         <div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
@@ -38,6 +55,7 @@
     </div>
   </main>
 
+  <!-- Navigation Mobile -->
   <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-2 px-3 z-40">
     <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 text-indigo-400">
       <i class="fa-solid fa-fire text-lg"></i><span class="text-[10px] font-medium">Top</span>
@@ -50,11 +68,13 @@
     </button>
   </nav>
 
-  <!-- Modal Fiche Anime -->
+  <!-- Modal Détails Anime -->
   <div id="modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-    <div id="modal-card" class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-xl w-full p-5 relative max-h-[90vh] overflow-y-auto shadow-2xl">
-      <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-xl"></i></button>
-      <div id="modal-body"></div>
+    <div id="modal-card" class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 relative max-h-[90vh] flex flex-col shadow-2xl">
+      <button onclick="closeModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white p-2 z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+      <div id="modal-body" class="overflow-y-auto scrollbar-hide flex-1 pb-4">
+        <!-- Le contenu du modal s'injectera ici -->
+      </div>
     </div>
   </div>
 
@@ -62,6 +82,7 @@
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
     let currentTab = 'top';
+    let currentFilter = 'all';
     let itemsData = [];
     let userProfile = null;
 
@@ -93,12 +114,38 @@
 
     function setTab(tab) {
       currentTab = tab;
+      
+      // Gestion du menu du bas
       ['top', 'airing', 'watchlist'].forEach(t => {
         document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 text-slate-400';
       });
+
+      // Affichage du titre et des filtres
       const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste' };
       document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>${titles[tab]}`;
+      
+      const filterBar = document.getElementById('watchlist-filters');
+      if(tab === 'watchlist') {
+        filterBar.classList.remove('hidden');
+        setFilter('all'); // Réinitialise le filtre
+      } else {
+        filterBar.classList.add('hidden');
+      }
+
       loadData();
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'watching', 'completed', 'plan_to_watch', 'on_hold', 'dropped'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if(btn) {
+          btn.className = (f === filter) 
+            ? 'px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white transition' 
+            : 'px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700';
+        }
+      });
+      renderGrid();
     }
 
     function getStatusColor(status) {
@@ -121,104 +168,141 @@
           return;
         }
 
+        // On charge jusqu'à 300 animes pour que le filtre s'applique sur tout le catalogue
         let endpoint = (currentTab === 'watchlist') 
-          ? 'users/@me/animelist?limit=50&fields=id,title,main_picture,mean,media_type,my_list_status' 
+          ? 'users/@me/animelist?limit=300&fields=id,title,main_picture,mean,media_type,my_list_status' 
           : `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=40&fields=id,title,main_picture,mean,media_type,my_list_status`;
         
         const json = await fetchMAL(endpoint);
         itemsData = json.data || [];
-        
-        if (itemsData.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun anime trouvé.</p>`;
-          return;
-        }
-
-        let html = `<div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">`;
-        itemsData.forEach(item => {
-          const img = item.node.main_picture?.large || item.node.main_picture?.medium || '';
-          const score = item.node.mean || '-';
-          const statusHtml = item.node.my_list_status ? `<div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase backdrop-blur ${getStatusColor(item.node.my_list_status.status)}">${formatStatus(item.node.my_list_status.status)}</div>` : '';
-          
-          html += `
-            <div onclick="openModal(${item.node.id})" class="bg-slate-900 border border-slate-800/80 rounded-xl sm:rounded-2xl overflow-hidden relative cursor-pointer hover:border-indigo-500/50 transition">
-              <div class="relative aspect-[3/4] bg-slate-950">
-                <img src="${img}" class="w-full h-full object-cover" />
-                ${statusHtml}
-                <div class="absolute top-1.5 right-1.5 bg-slate-950/85 backdrop-blur px-2 py-0.5 rounded-lg text-[10px] font-bold text-amber-400 border border-slate-800">★ ${score}</div>
-              </div>
-              <div class="p-2.5"><h3 class="font-semibold text-slate-200 text-xs line-clamp-2">${item.node.title}</h3></div>
-            </div>`;
-        });
-        html += `</div>`;
-        container.innerHTML = html;
+        renderGrid();
 
       } catch (e) {
         container.innerHTML = `<div class="bg-rose-900/20 border border-rose-800 p-4 rounded-xl text-center"><p class="text-rose-400 text-xs">${e.message}</p></div>`;
       }
     }
 
-    function openModal(id) {
-      const item = itemsData.find(i => i.node.id === id);
-      if (!item) return;
-      const anime = item.node;
-      
-      const img = anime.main_picture?.large || anime.main_picture?.medium || '';
-      const score = anime.mean || 'N/A';
-      const status = anime.my_list_status ? anime.my_list_status.status : 'plan_to_watch';
-      const userScore = anime.my_list_status ? anime.my_list_status.score : 0;
-
-      let editorHtml = '';
-      if (userProfile && userProfile.name) {
-        editorHtml = `
-          <div class="mt-auto bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
-            <h3 class="text-xs font-bold text-emerald-400 mb-2.5"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Mettre à jour ma liste</h3>
-            <div class="grid grid-cols-2 gap-2.5 mb-3">
-              <div>
-                <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Statut</label>
-                <select id="edit-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
-                  <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>À voir</option>
-                  <option value="watching" ${status === 'watching' ? 'selected' : ''}>En cours</option>
-                  <option value="completed" ${status === 'completed' ? 'selected' : ''}>Terminé</option>
-                  <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>En pause</option>
-                  <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Abandonné</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Note (0-10)</label>
-                <select id="edit-score" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
-                  ${[0,1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${userScore === n ? 'selected' : ''}>${n === 0 ? 'Pas de note' : n}</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="saveAnimeStatus(${id})" id="btn-save" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition">Enregistrer</button>
-              ${anime.my_list_status ? `<button onclick="deleteAnimeStatus(${id})" class="bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 border border-slate-700 px-3 rounded-lg transition"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
-            </div>
-          </div>
-        `;
-      } else {
-        editorHtml = `
-          <div class="mt-auto bg-slate-800/50 p-3 rounded-xl border border-slate-800 text-center">
-            <p class="text-xs text-slate-400 mb-2">Connectez votre compte pour modifier cet anime.</p>
-            <button onclick="loginMAL()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg">Se connecter</button>
-          </div>
-        `;
+    function renderGrid() {
+      const container = document.getElementById('main-content');
+      if (!itemsData || itemsData.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun anime trouvé.</p>`;
+        return;
       }
 
-      document.getElementById('modal-body').innerHTML = `
-        <div class="flex flex-col sm:flex-row gap-4 mt-2">
-          <img src="${img}" class="w-28 h-40 object-cover rounded-xl shadow-xl mx-auto shrink-0" />
-          <div class="flex-1 flex flex-col">
-            <h2 class="text-base font-bold text-slate-100 mb-2 text-center sm:text-left">${anime.title}</h2>
-            <div class="flex justify-center sm:justify-start gap-2 text-xs mb-4">
-              <span class="bg-amber-500/10 text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-500/20">★ ${score}</span>
-              <span class="bg-indigo-500/10 text-indigo-400 font-semibold px-2 py-0.5 rounded border border-indigo-500/20 uppercase">${anime.media_type || 'TV'}</span>
+      // Application du filtre si on est dans Ma Liste
+      let dataToRender = itemsData;
+      if (currentTab === 'watchlist' && currentFilter !== 'all') {
+        dataToRender = itemsData.filter(item => item.node.my_list_status && item.node.my_list_status.status === currentFilter);
+      }
+
+      if (dataToRender.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-sm text-center py-10">Aucun anime dans cette catégorie.</p>`;
+        return;
+      }
+
+      let html = `<div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">`;
+      dataToRender.forEach(item => {
+        const img = item.node.main_picture?.large || item.node.main_picture?.medium || '';
+        const score = item.node.mean || '-';
+        const statusHtml = item.node.my_list_status ? `<div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase backdrop-blur ${getStatusColor(item.node.my_list_status.status)}">${formatStatus(item.node.my_list_status.status)}</div>` : '';
+        
+        html += `
+          <div onclick="openModal(${item.node.id})" class="bg-slate-900 border border-slate-800/80 rounded-xl sm:rounded-2xl overflow-hidden relative cursor-pointer hover:border-indigo-500/50 transition">
+            <div class="relative aspect-[3/4] bg-slate-950">
+              <img src="${img}" class="w-full h-full object-cover" />
+              ${statusHtml}
+              <div class="absolute top-1.5 right-1.5 bg-slate-950/85 backdrop-blur px-2 py-0.5 rounded-lg text-[10px] font-bold text-amber-400 border border-slate-800">★ ${score}</div>
             </div>
+            <div class="p-2.5"><h3 class="font-semibold text-slate-200 text-xs line-clamp-2">${item.node.title}</h3></div>
+          </div>`;
+      });
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    async function openModal(id) {
+      // 1. Affiche le modal avec un spinner de chargement
+      const modalBody = document.getElementById('modal-body');
+      modalBody.innerHTML = `<div class="flex justify-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div></div>`;
+      document.getElementById('modal').classList.remove('hidden');
+
+      try {
+        // 2. Requête API pour récupérer les détails complets de l'anime (Synopsis, épisodes, etc.)
+        const anime = await fetchMAL(`anime/${id}?fields=id,title,main_picture,mean,media_type,my_list_status,synopsis,num_episodes,genres`);
+        
+        const img = anime.main_picture?.large || anime.main_picture?.medium || '';
+        const score = anime.mean || 'N/A';
+        const status = anime.my_list_status ? anime.my_list_status.status : 'plan_to_watch';
+        const userScore = anime.my_list_status ? anime.my_list_status.score : 0;
+        const episodes = anime.num_episodes ? `${anime.num_episodes} eps` : '? eps';
+        
+        // Tags des genres
+        const genresHtml = (anime.genres || []).slice(0, 3).map(g => `<span class="bg-slate-800 text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-slate-700">${g.name}</span>`).join('');
+
+        let editorHtml = '';
+        if (userProfile && userProfile.name) {
+          editorHtml = `
+            <div class="mt-4 bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
+              <h3 class="text-xs font-bold text-emerald-400 mb-2.5"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Ma Liste</h3>
+              <div class="grid grid-cols-2 gap-2.5 mb-3">
+                <div>
+                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Statut</label>
+                  <select id="edit-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                    <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>À voir</option>
+                    <option value="watching" ${status === 'watching' ? 'selected' : ''}>En cours</option>
+                    <option value="completed" ${status === 'completed' ? 'selected' : ''}>Terminé</option>
+                    <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>En pause</option>
+                    <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Abandonné</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Note</label>
+                  <select id="edit-score" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                    ${[0,1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${userScore === n ? 'selected' : ''}>${n === 0 ? 'Pas de note' : n}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="saveAnimeStatus(${id})" id="btn-save" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition">Enregistrer</button>
+                ${anime.my_list_status ? `<button onclick="deleteAnimeStatus(${id})" class="bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 border border-slate-700 px-3 rounded-lg transition"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          editorHtml = `<div class="mt-4 bg-slate-800/50 p-3 rounded-xl border border-slate-800 text-center"><p class="text-xs text-slate-400 mb-2">Connectez-vous pour modifier.</p><button onclick="loginMAL()" class="bg-indigo-600 text-white text-xs font-bold py-1.5 px-4 rounded-lg">Connexion</button></div>`;
+        }
+
+        modalBody.innerHTML = `
+          <div class="flex flex-col gap-4 mt-2">
+            <!-- Header Anime -->
+            <div class="flex gap-4">
+              <img src="${img}" class="w-24 h-36 object-cover rounded-xl shadow-md shrink-0 border border-slate-800" />
+              <div class="flex-1 flex flex-col justify-start pt-1">
+                <h2 class="text-sm sm:text-base font-bold text-slate-100 leading-tight mb-2 pr-6">${anime.title}</h2>
+                <div class="flex flex-wrap gap-1.5 text-[10px] mb-2">
+                  <span class="bg-amber-500/10 text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-500/20">★ ${score}</span>
+                  <span class="bg-indigo-500/10 text-indigo-400 font-semibold px-2 py-0.5 rounded border border-indigo-500/20 uppercase">${anime.media_type || 'TV'}</span>
+                  <span class="bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded border border-slate-700">${episodes}</span>
+                </div>
+                <div class="flex flex-wrap gap-1 mb-2">
+                  ${genresHtml}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Synopsis -->
+            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/50 mt-1">
+              <h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Synopsis</h4>
+              <p class="text-xs text-slate-300 leading-relaxed max-h-28 overflow-y-auto scrollbar-hide pr-1">${anime.synopsis || 'Aucun synopsis disponible.'}</p>
+            </div>
+
+            <!-- Formulaire d'édition -->
             ${editorHtml}
           </div>
-        </div>
-      `;
-      document.getElementById('modal').classList.remove('hidden');
+        `;
+      } catch (e) {
+        modalBody.innerHTML = `<p class="text-rose-400 text-center mt-10">Impossible de charger les détails.</p>`;
+      }
     }
 
     function closeModal() {
@@ -235,8 +319,12 @@
       
       try {
         await fetchMAL(`anime/${id}/my_list_status`, 'PATCH', { status, score });
+        // Met à jour la donnée locale
+        const item = itemsData.find(i => i.node.id === id);
+        if (item) item.node.my_list_status = { status, score };
+        
         closeModal();
-        loadData(); // Recharge la liste pour afficher le nouveau badge
+        renderGrid(); // Rafraîchit l'affichage avec le nouveau badge
       } catch (e) {
         alert('Erreur lors de la sauvegarde.');
         btn.innerText = "Enregistrer";
@@ -248,8 +336,16 @@
       if (!confirm('Retirer cet anime de votre liste ?')) return;
       try {
         await fetchMAL(`anime/${id}/my_list_status`, 'DELETE');
+        
+        // Supprime la donnée locale
+        const idx = itemsData.findIndex(i => i.node.id === id);
+        if (idx > -1) {
+          itemsData[idx].node.my_list_status = null;
+          if (currentTab === 'watchlist') itemsData.splice(idx, 1);
+        }
+        
         closeModal();
-        loadData();
+        renderGrid();
       } catch (e) {
         alert('Erreur lors de la suppression.');
       }
@@ -268,25 +364,4 @@
           });
           const data = await res.json();
           if (data.access_token) {
-            localStorage.setItem('mal_access_token', data.access_token);
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } catch(e) {}
-      }
-
-      const token = localStorage.getItem('mal_access_token');
-      if (token) {
-        try {
-          userProfile = await fetchMAL('users/@me');
-          if (userProfile && userProfile.name) {
-            document.getElementById('user-area').innerHTML = `<div class="flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-lg border border-slate-700"><span class="text-emerald-400 text-xs font-bold">${userProfile.name}</span><button onclick="localStorage.removeItem('mal_access_token'); window.location.reload();" class="text-slate-400 hover:text-rose-400 ml-1"><i class="fa-solid fa-right-from-bracket"></i></button></div>`;
-          }
-        } catch(e) {}
-      }
-      loadData();
-    }
-
-    window.onload = initApp;
-  </script>
-</body>
-</html>
+            localStorage.setItem('mal_access_to
