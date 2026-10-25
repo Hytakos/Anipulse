@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    :root { color-scheme: dark; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -32,7 +33,7 @@
       </div>
     </div>
     <div class="relative w-full">
-      <input type="text" id="search-input" placeholder="Rechercher un anime..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" onkeyup="if(event.key==='Enter') searchAnime()">
+      <input type="text" id="search-input" placeholder="Rechercher un anime..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" onkeyup="handleSearch(event)">
       <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
     </div>
   </header>
@@ -40,13 +41,24 @@
   <main class="p-4">
     <h1 id="page-title" class="text-xl font-bold mb-4"><span class="text-indigo-500 mr-2">●</span>Top Animes</h1>
     
-    <div id="watchlist-filters" class="hidden flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-hide whitespace-nowrap">
-      <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white transition">Tous</button>
-      <button onclick="setFilter('watching')" id="filter-watching" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En cours</button>
-      <button onclick="setFilter('plan_to_watch')" id="filter-plan_to_watch" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">À voir</button>
-      <button onclick="setFilter('completed')" id="filter-completed" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Terminé</button>
-      <button onclick="setFilter('on_hold')" id="filter-on_hold" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En pause</button>
-      <button onclick="setFilter('dropped')" id="filter-dropped" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Abandonné</button>
+    <div id="watchlist-controls" class="hidden flex flex-col gap-3 mb-4 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
+      <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap">
+        <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-indigo-600 text-white transition">Tous</button>
+        <button onclick="setFilter('watching')" id="filter-watching" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En cours</button>
+        <button onclick="setFilter('plan_to_watch')" id="filter-plan_to_watch" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">À voir</button>
+        <button onclick="setFilter('completed')" id="filter-completed" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Terminé</button>
+        <button onclick="setFilter('on_hold')" id="filter-on_hold" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En pause</button>
+        <button onclick="setFilter('dropped')" id="filter-dropped" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Abandonné</button>
+      </div>
+      <div class="flex items-center gap-2 px-1">
+        <i class="fa-solid fa-arrow-down-a-z text-slate-500 text-xs"></i>
+        <select id="sort-select" onchange="setSort(this.value)" class="bg-slate-950 border border-slate-700 text-[11px] rounded-lg px-2 py-1.5 outline-none text-slate-200 w-full font-medium">
+          <option value="title">Trier par Titre</option>
+          <option value="user_score">Trier par Ma Note</option>
+          <option value="global_score">Trier par Score Global</option>
+          <option value="popularity">Trier par Membres MAL</option>
+        </select>
+      </div>
     </div>
 
     <div id="main-content">
@@ -57,15 +69,18 @@
     </div>
   </main>
 
-  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-2 px-3 z-40">
-    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 text-indigo-400">
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-2 px-1 z-40">
+    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 px-3 text-indigo-400">
       <i class="fa-solid fa-fire text-lg"></i><span class="text-[10px] font-medium">Top</span>
     </button>
-    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
       <i class="fa-solid fa-tv text-lg"></i><span class="text-[10px] font-medium">Saison</span>
     </button>
-    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 text-slate-400">
-      <i class="fa-solid fa-bookmark text-lg"></i><span class="text-[10px] font-medium">Ma Liste</span>
+    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+      <i class="fa-solid fa-bookmark text-lg"></i><span class="text-[10px] font-medium">Liste</span>
+    </button>
+    <button onclick="setTab('profile')" id="nav-profile" class="flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+      <i class="fa-solid fa-user text-lg"></i><span class="text-[10px] font-medium">Profil</span>
     </button>
   </nav>
 
@@ -81,6 +96,8 @@
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
     let currentTab = 'top';
     let currentFilter = 'all';
+    let currentSort = 'title';
+    let currentSearch = '';
     let itemsData = [];
     let userProfile = null;
 
@@ -94,16 +111,13 @@
       const token = localStorage.getItem('mal_access_token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : { 'X-MAL-CLIENT-ID': CLIENT_ID };
       const options = { method, headers };
-      
       if (body) {
         options.body = new URLSearchParams(body);
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
       }
-      
       const res = await fetch(`${SERVEUR_URL}/api/${endpoint}`, options);
       if (res.status === 401) { localStorage.removeItem('mal_access_token'); window.location.reload(); return null; }
       if (!res.ok) throw new Error('Erreur de requête');
-      
       if (method !== 'DELETE') {
         const text = await res.text();
         return text ? JSON.parse(text) : {};
@@ -112,22 +126,26 @@
     }
 
     function setTab(tab) {
-      if (currentTab === tab && itemsData.length > 0) return;
       currentTab = tab;
-      
-      ['top', 'airing', 'watchlist'].forEach(t => {
-        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 text-slate-400';
+      ['top', 'airing', 'watchlist', 'profile'].forEach(t => {
+        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-3 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-3 text-slate-400';
       });
 
-      const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste' };
+      const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste', profile: 'Mon Profil' };
       document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>${titles[tab]}`;
       
-      const filterBar = document.getElementById('watchlist-filters');
+      const filterBar = document.getElementById('watchlist-controls');
+      const searchInput = document.getElementById('search-input');
+      
       if(tab === 'watchlist') {
         filterBar.classList.remove('hidden');
+        searchInput.placeholder = "Filtrer ma liste...";
         setFilter('all');
       } else {
         filterBar.classList.add('hidden');
+        searchInput.placeholder = "Rechercher un anime sur MAL...";
+        currentSearch = '';
+        searchInput.value = '';
       }
       loadData();
     }
@@ -136,13 +154,39 @@
       currentFilter = filter;
       ['all', 'watching', 'completed', 'plan_to_watch', 'on_hold', 'dropped'].forEach(f => {
         const btn = document.getElementById(`filter-${f}`);
-        if(btn) {
-          btn.className = (f === filter) 
-            ? 'px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white transition' 
-            : 'px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700';
-        }
+        if(btn) btn.className = (f === filter) ? 'px-3 py-1.5 rounded-full text-[11px] font-semibold bg-indigo-600 text-white transition' : 'px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700';
       });
       renderGrid();
+    }
+
+    function setSort(sortType) {
+      currentSort = sortType;
+      renderGrid();
+    }
+
+    function handleSearch(e) {
+      const q = e.target.value.trim().toLowerCase();
+      if (currentTab === 'watchlist') {
+        currentSearch = q;
+        renderGrid();
+      } else {
+        if (e.key === 'Enter') {
+          if (!q) return;
+          executeGlobalSearch(q);
+        }
+      }
+    }
+
+    async function executeGlobalSearch(q) {
+      const container = document.getElementById('main-content');
+      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div><p class="text-slate-400 text-xs mt-3">Recherche globale...</p></div>`;
+      try {
+        const json = await fetchMAL(`anime?q=${encodeURIComponent(q)}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users`);
+        itemsData = (json && Array.isArray(json.data)) ? json.data : [];
+        renderGrid();
+      } catch (e) {
+        container.innerHTML = `<p class="text-rose-400 text-center py-10">Recherche échouée.</p>`;
+      }
     }
 
     function getStatusColor(status) {
@@ -155,28 +199,46 @@
       return labels[status] || status;
     }
 
-    async function searchAnime() {
-      const q = document.getElementById('search-input').value.trim();
-      if(!q) return;
-      document.getElementById('main-content').innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div><p class="text-slate-400 text-xs mt-3">Recherche en cours...</p></div>`;
-      document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>Résultats: ${q}`;
-      document.getElementById('watchlist-filters').classList.add('hidden');
-      
-      try {
-        const json = await fetchMAL(`anime?q=${encodeURIComponent(q)}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status`);
-        itemsData = (json && Array.isArray(json.data)) ? json.data : [];
-        currentFilter = 'all';
-        renderGrid();
-      } catch (e) {
-        document.getElementById('main-content').innerHTML = `<p class="text-rose-400 text-center py-10">Recherche échouée.</p>`;
-      }
-    }
-
     async function loadData() {
       const container = document.getElementById('main-content');
       container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement en cours...</p></div>`;
       
       try {
+        if (currentTab === 'profile') {
+          if (!localStorage.getItem('mal_access_token')) {
+            container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre profil</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
+            return;
+          }
+          const profile = await fetchMAL('users/@me?fields=anime_statistics');
+          if (profile && profile.anime_statistics) {
+            const s = profile.anime_statistics;
+            container.innerHTML = `
+              <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <div class="flex items-center gap-4 mb-6 border-b border-slate-800 pb-4">
+                  ${profile.picture ? `<img src="${profile.picture}" class="w-16 h-16 rounded-full border-2 border-indigo-500">` : `<div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center"><i class="fa-solid fa-user text-2xl text-slate-500"></i></div>`}
+                  <div><h2 class="text-xl font-bold text-white">${profile.name}</h2><p class="text-xs text-slate-400">ID: ${profile.id}</p></div>
+                </div>
+                <div class="flex justify-between items-center mb-5 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <div class="text-center"><p class="text-[10px] text-slate-500 uppercase tracking-wide">Jours</p><p class="text-lg font-bold text-slate-200">${s.num_days_watched.toFixed(1)}</p></div>
+                  <div class="w-px h-8 bg-slate-800"></div>
+                  <div class="text-center"><p class="text-[10px] text-slate-500 uppercase tracking-wide">Moyenne</p><p class="text-lg font-bold text-amber-400">★ ${s.mean_score.toFixed(2)}</p></div>
+                  <div class="w-px h-8 bg-slate-800"></div>
+                  <div class="text-center"><p class="text-[10px] text-slate-500 uppercase tracking-wide">Épisodes</p><p class="text-lg font-bold text-slate-200">${s.num_episodes}</p></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800"><span class="text-slate-400 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-emerald-500"></div>En cours</span><span class="font-bold text-emerald-400">${s.num_items_watching}</span></div>
+                  <div class="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800"><span class="text-slate-400 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500"></div>Terminés</span><span class="font-bold text-blue-400">${s.num_items_completed}</span></div>
+                  <div class="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800"><span class="text-slate-400 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500"></div>En pause</span><span class="font-bold text-amber-400">${s.num_items_on_hold}</span></div>
+                  <div class="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800"><span class="text-slate-400 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-rose-500"></div>Abandonnés</span><span class="font-bold text-rose-400">${s.num_items_dropped}</span></div>
+                  <div class="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800"><span class="text-slate-400 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-slate-500"></div>À voir</span><span class="font-bold text-slate-300">${s.num_items_plan_to_watch}</span></div>
+                  <div class="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800"><span class="text-slate-400 flex items-center gap-2"><i class="fa-solid fa-layer-group text-[10px] text-indigo-400"></i>Total</span><span class="font-bold text-indigo-400">${s.num_items}</span></div>
+                </div>
+              </div>
+            `;
+          }
+          return;
+        }
+
         if (currentTab === 'watchlist') {
           if (!localStorage.getItem('mal_access_token')) {
             container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre liste</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
@@ -184,31 +246,24 @@
           }
           
           let allItems = [];
-          let endpoint = 'users/@me/animelist?limit=1000&fields=id,title,main_picture,mean,media_type,my_list_status';
+          let endpoint = 'users/@me/animelist?limit=1000&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users';
           
-          while (endpoint && allItems.length < 4000) {
+          while (endpoint && allItems.length < 5000) {
             const json = await fetchMAL(endpoint);
             if (json && json.data) {
               allItems = allItems.concat(json.data);
-              if (json.paging && json.paging.next) {
-                endpoint = json.paging.next.split('/v2/')[1];
-              } else {
-                endpoint = null;
-              }
+              endpoint = (json.paging && json.paging.next) ? json.paging.next.split('/v2/')[1] : null;
             } else {
               endpoint = null;
             }
           }
           itemsData = allItems;
-          renderGrid();
-
         } else {
-          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=40&fields=id,title,main_picture,mean,media_type,my_list_status`;
+          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users`;
           const json = await fetchMAL(endpoint);
           itemsData = (json && Array.isArray(json.data)) ? json.data : [];
-          renderGrid();
         }
-
+        renderGrid();
       } catch (e) {
         container.innerHTML = `<div class="bg-rose-900/20 border border-rose-800 p-4 rounded-xl text-center"><p class="text-rose-400 text-xs">${e.message}</p></div>`;
       }
@@ -221,13 +276,31 @@
         return;
       }
 
-      let dataToRender = itemsData;
-      if (currentTab === 'watchlist' && currentFilter !== 'all') {
-        dataToRender = itemsData.filter(item => item.node.my_list_status && item.node.my_list_status.status === currentFilter);
+      let dataToRender = [...itemsData];
+      
+      if (currentTab === 'watchlist') {
+        if (currentFilter !== 'all') {
+          dataToRender = dataToRender.filter(item => item.node.my_list_status && item.node.my_list_status.status === currentFilter);
+        }
+        if (currentSearch) {
+          dataToRender = dataToRender.filter(item => item.node.title.toLowerCase().includes(currentSearch));
+        }
+        
+        dataToRender.sort((a, b) => {
+          if (currentSort === 'title') return a.node.title.localeCompare(b.node.title);
+          if (currentSort === 'user_score') {
+            const sa = a.node.my_list_status ? a.node.my_list_status.score : 0;
+            const sb = b.node.my_list_status ? b.node.my_list_status.score : 0;
+            return sb - sa;
+          }
+          if (currentSort === 'global_score') return (b.node.mean || 0) - (a.node.mean || 0);
+          if (currentSort === 'popularity') return (b.node.num_list_users || 0) - (a.node.num_list_users || 0);
+          return 0;
+        });
       }
 
       if (dataToRender.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-sm text-center py-10">Aucun anime dans cette catégorie.</p>`;
+        container.innerHTML = `<p class="text-slate-400 text-sm text-center py-10">Aucun résultat.</p>`;
         return;
       }
 
@@ -263,15 +336,19 @@
         const score = anime.mean || 'N/A';
         const status = anime.my_list_status ? anime.my_list_status.status : 'plan_to_watch';
         const userScore = anime.my_list_status ? anime.my_list_status.score : 0;
-        const episodes = anime.num_episodes ? `${anime.num_episodes} eps` : '? eps';
+        const epsWatched = anime.my_list_status ? anime.my_list_status.num_watched_episodes : 0;
+        const startDate = anime.my_list_status?.start_date || '';
+        const finishDate = anime.my_list_status?.finish_date || '';
+        const maxEps = anime.num_episodes || 9999;
+        const episodesLabel = anime.num_episodes ? `${anime.num_episodes} eps` : '? eps';
         const genresHtml = (anime.genres || []).slice(0, 3).map(g => `<span class="bg-slate-800 text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-slate-700">${g.name}</span>`).join('');
 
         let editorHtml = '';
         if (userProfile && userProfile.name) {
           editorHtml = `
-            <div class="mt-4 bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
-              <h3 class="text-xs font-bold text-emerald-400 mb-2.5"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Ma Liste</h3>
-              <div class="grid grid-cols-2 gap-2.5 mb-3">
+            <div class="mt-4 bg-slate-950 border border-slate-800 p-3 rounded-xl">
+              <h3 class="text-xs font-bold text-emerald-400 mb-2.5"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Suivi MyAnimeList</h3>
+              <div class="grid grid-cols-2 gap-2.5 mb-2.5">
                 <div>
                   <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Statut</label>
                   <select id="edit-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
@@ -283,13 +360,27 @@
                   </select>
                 </div>
                 <div>
-                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Note</label>
+                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Note (0-10)</label>
                   <select id="edit-score" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
                     ${[0,1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${userScore === n ? 'selected' : ''}>${n === 0 ? 'Pas de note' : n}</option>`).join('')}
                   </select>
                 </div>
               </div>
-              <div class="flex gap-2">
+              <div class="grid grid-cols-2 gap-2.5 mb-3">
+                <div class="col-span-2">
+                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Épisodes vus (Max: ${maxEps === 9999 ? '?' : maxEps})</label>
+                  <input type="number" id="edit-eps" value="${epsWatched}" min="0" max="${maxEps}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Date de début</label>
+                  <input type="date" id="edit-start" value="${startDate}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 outline-none uppercase">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Date de fin</label>
+                  <input type="date" id="edit-finish" value="${finishDate}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 outline-none uppercase">
+                </div>
+              </div>
+              <div class="flex gap-2 mt-1">
                 <button onclick="saveAnimeStatus(${id})" id="btn-save" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition">Enregistrer</button>
                 ${anime.my_list_status ? `<button onclick="deleteAnimeStatus(${id})" class="bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 border border-slate-700 px-3 rounded-lg transition"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
               </div>
@@ -308,7 +399,7 @@
                 <div class="flex flex-wrap gap-1.5 text-[10px] mb-2">
                   <span class="bg-amber-500/10 text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-500/20">★ ${score}</span>
                   <span class="bg-indigo-500/10 text-indigo-400 font-semibold px-2 py-0.5 rounded border border-indigo-500/20 uppercase">${anime.media_type || 'TV'}</span>
-                  <span class="bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded border border-slate-700">${episodes}</span>
+                  <span class="bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded border border-slate-700">${episodesLabel}</span>
                 </div>
                 <div class="flex flex-wrap gap-1 mb-2">${genresHtml}</div>
               </div>
@@ -336,11 +427,22 @@
       
       const status = document.getElementById('edit-status').value;
       const score = parseInt(document.getElementById('edit-score').value);
+      const num_watched_episodes = parseInt(document.getElementById('edit-eps').value) || 0;
+      const start_date = document.getElementById('edit-start').value;
+      const finish_date = document.getElementById('edit-finish').value;
       
+      const body = { status, score, num_watched_episodes };
+      if (start_date) body.start_date = start_date;
+      if (finish_date) body.finish_date = finish_date;
+
       try {
-        await fetchMAL(`anime/${id}/my_list_status`, 'PATCH', { status, score });
+        await fetchMAL(`anime/${id}/my_list_status`, 'PATCH', body);
         const item = itemsData.find(i => i.node.id === id);
-        if (item) item.node.my_list_status = { status, score };
+        if (item) {
+            item.node.my_list_status = item.node.my_list_status || {};
+            item.node.my_list_status.status = status;
+            item.node.my_list_status.score = score;
+        }
         closeModal();
         renderGrid();
       } catch (e) {
