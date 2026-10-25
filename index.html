@@ -126,5 +126,255 @@
     async function fetchMAL(endpoint, method = 'GET', body = null) {
       const token = localStorage.getItem('mal_access_token');
       const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`; else headers['X-MAL-CLIENT-ID'] = CLIENT_ID;  const options = { method, headers }; if (body) { options.body = new URLSearchParams(body); headers['Content-Type'] = 'application/x-www-form-urlencoded'; } const res = await fetch(`${
-        
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      else headers['X-MAL-CLIENT-ID'] = CLIENT_ID;
+
+      const options = { method, headers };
+      if (body) {
+        options.body = new URLSearchParams(body);
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      }
+      const res = await fetch(`${SERVEUR_URL}/api/${endpoint}`, options);
+      if (res.status === 401) { logoutMAL(); throw new Error('Session expirée.'); }
+      if (!res.ok) throw new Error('Erreur de chargement.');
+      if (method !== 'DELETE') {
+        const text = await res.text();
+        return text ? JSON.parse(text) : {};
+      }
+      return null;
+    }
+
+    function renderUserArea() {
+      const mobileArea = document.getElementById('user-area-mobile');
+      const desktopArea = document.getElementById('user-area-desktop');
+
+      if (userProfile && userProfile.name) {
+        const html = `
+          <div class="flex items-center gap-2 px-3 py-1 rounded-xl border border-slate-800 bg-slate-900 text-xs font-semibold text-emerald-400">
+            <span>${userProfile.name}</span>
+            <button onclick="logoutMAL()" class="text-slate-400 hover:text-rose-400 ml-1"><i class="fa-solid fa-right-from-bracket"></i></button>
+          </div>
+        `;
+        mobileArea.innerHTML = html;
+        desktopArea.innerHTML = html;
+      } else {
+        mobileArea.innerHTML = `<button onclick="loginMAL()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 shadow-md">Connexion</button>`;
+        desktopArea.innerHTML = `<button onclick="loginMAL()" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg"><i class="fa-solid fa-user"></i><span>Connexion MAL</span></button>`;
+      }
+    }
+
+    function formatStatus(status) {
+      const labels = { watching: 'En cours', completed: 'Terminé', on_hold: 'En pause', dropped: 'Abandonné', plan_to_watch: 'À voir' };
+      return labels[status] || status;
+    }
+
+    function getStatusColor(status) {
+      const colors = { watching: 'bg-emerald-500/90 text-white', completed: 'bg-blue-500/90 text-white', on_hold: 'bg-amber-500/90 text-white', dropped: 'bg-rose-500/90 text-white', plan_to_watch: 'bg-slate-600/90 text-white' };
+      return colors[status] || 'bg-slate-800 text-white';
+    }
+
+    function renderGrid(data) {
+      const container = document.getElementById('main-content');
+      if (!data || data.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-xs text-center py-12">Aucun anime trouvé.</p>`;
+        return;
+      }
+
+      let html = `<div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">`;
+      data.forEach(item => {
+        const node = item.node;
+        const img = node.main_picture?.large || node.main_picture?.medium || '';
+        const score = node.mean || 'N/A';
+        const statusHtml = node.my_list_status ? `<div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase backdrop-blur ${getStatusColor(node.my_list_status.status)}">${formatStatus(node.my_list_status.status)}</div>` : '';
+
+        html += `
+          <div onclick="openModal(${node.id})" class="group bg-slate-900 border border-slate-800/80 rounded-xl sm:rounded-2xl overflow-hidden hover:border-indigo-500/50 cursor-pointer flex flex-col relative transition">
+            <div class="relative aspect-[3/4] overflow-hidden bg-slate-950">
+              <img src="${img}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+              ${statusHtml}
+              <div class="absolute top-1.5 right-1.5 bg-slate-950/85 backdrop-blur px-2 py-0.5 rounded-lg text-[10px] font-bold text-amber-400 flex items-center gap-1 border border-slate-800">
+                <i class="fa-solid fa-star text-[9px]"></i><span>${score}</span>
+              </div>
+            </div>
+            <div class="p-2.5 flex-1 flex flex-col justify-between">
+              <h3 class="font-semibold text-slate-200 text-xs line-clamp-2 leading-snug">${node.title}</h3>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    async function loadData() {
+      const container = document.getElementById('main-content');
+      container.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
+          <p class="text-slate-400 text-xs">Chargement MyAnimeList...</p>
+        </div>
+      `;
+
+      try {
+        let endpoint = '';
+        if (currentTab === 'watchlist') {
+          if (!localStorage.getItem('mal_access_token')) {
+            container.innerHTML = `
+              <div class="bg-rose-900/20 border border-rose-500/30 rounded-2xl p-5 text-center max-w-md mx-auto my-8">
+                <p class="text-rose-400 text-xs sm:text-sm mb-3">Veuillez vous connecter pour afficher votre liste.</p>
+                <button onclick="loginMAL()" class="bg-indigo-600 px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg">Se connecter avec MyAnimeList</button>
+              </div>
+            `;
+            return;
+          }
+          endpoint = 'users/@me/animelist?limit=50&fields=id,title,main_picture,mean,media_type,my_list_status';
+        } else {
+          const sort = currentTab === 'airing' ? 'airing' : 'all';
+          endpoint = `anime/ranking?ranking_type=${sort}&limit=40&fields=id,title,main_picture,mean,media_type,my_list_status`;
+        }
+
+        const res = await fetchMAL(endpoint);
+        itemsData = res.data || [];
+        renderGrid(itemsData);
+      } catch (e) {
+        container.innerHTML = `<p class="text-rose-400 text-xs text-center py-12">${e.message}</p>`;
+      }
+    }
+
+    function updateNavUI() {
+      ['top', 'airing', 'watchlist'].forEach(t => {
+        const btn = document.getElementById(`nav-${t}`);
+        const mobBtn = document.getElementById(`mob-nav-${t}`);
+        if (t === currentTab) {
+          if(btn) btn.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition text-indigo-400 bg-indigo-600/20 font-semibold";
+          if(mobBtn) mobBtn.className = "flex flex-col items-center gap-1 py-1 text-indigo-400";
+        } else {
+          if(btn) btn.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition text-slate-400 hover:text-slate-200";
+          if(mobBtn) mobBtn.className = "flex flex-col items-center gap-1 py-1 text-slate-400";
+        }
+      });
+
+      const titleMap = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste MyAnimeList' };
+      document.getElementById('page-title').innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>${titleMap[currentTab] || 'Catalogue'}`;
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      updateNavUI();
+      loadData();
+    }
+
+    async function searchAnime() {
+      const q = document.getElementById('search-input').value.trim();
+      if (!q) return;
+
+      const container = document.getElementById('main-content');
+      container.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
+          <p class="text-slate-400 text-xs">Recherche en cours...</p>
+        </div>
+      `;
+      document.getElementById('page-title').innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>Résultats pour "${q}"`;
+
+      try {
+        const res = await fetchMAL(`anime?q=${encodeURIComponent(q)}&limit=40&fields=id,title,main_picture,mean,media_type,my_list_status`);
+        itemsData = res.data || [];
+        renderGrid(itemsData);
+      } catch (e) {
+        container.innerHTML = `<p class="text-rose-400 text-xs text-center py-12">Recherche échouée.</p>`;
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') searchAnime();
+    });
+
+    function openModal(id) {
+      const item = itemsData.find(i => i.node.id === id);
+      if (!item) return;
+      const anime = item.node;
+
+      const img = anime.main_picture?.large || anime.main_picture?.medium || '';
+      const score = anime.mean || 'N/A';
+      const status = anime.my_list_status ? anime.my_list_status.status : 'plan_to_watch';
+      const userScore = anime.my_list_status ? anime.my_list_status.score : 0;
+
+      let editorHtml = '';
+      if (userProfile && userProfile.name) {
+        editorHtml = `
+          <div class="mt-auto bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
+            <h3 class="text-xs font-bold text-emerald-400 mb-2.5"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Mettre à jour ma liste</h3>
+            <div class="grid grid-cols-2 gap-2.5 mb-3">
+              <div>
+                <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Statut</label>
+                <select id="edit-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                  <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>À voir</option>
+                  <option value="watching" ${status === 'watching' ? 'selected' : ''}>En cours</option>
+                  <option value="completed" ${status === 'completed' ? 'selected' : ''}>Terminé</option>
+                  <option value="on_hold" ${status === 'on_hold' ? 'selected' : ''}>En pause</option>
+                  <option value="dropped" ${status === 'dropped' ? 'selected' : ''}>Abandonné</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Note (0-10)</label>
+                <select id="edit-score" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                  ${[0,1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${userScore === n ? 'selected' : ''}>${n === 0 ? 'Pas de note' : n}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="saveAnimeStatus(${id})" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition">Enregistrer</button>
+              ${anime.my_list_status ? `<button onclick="deleteAnimeStatus(${id})" class="bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 border border-slate-700 px-3 rounded-lg transition"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+            </div>
+          </div>
+        `;
+      } else {
+        editorHtml = `
+          <div class="mt-auto bg-slate-800/50 p-3 rounded-xl border border-slate-800 text-center">
+            <p class="text-xs text-slate-400 mb-2">Connectez votre compte pour modifier cet anime.</p>
+            <button onclick="loginMAL()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg">Se connecter</button>
+          </div>
+        `;
+      }
+
+      document.getElementById('modal-body').innerHTML = `
+        <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-2">
+          <img src="${img}" class="w-28 h-40 sm:w-36 sm:h-52 object-cover rounded-xl shadow-xl mx-auto sm:mx-0 shrink-0" />
+          <div class="flex-1 flex flex-col">
+            <h2 class="text-base sm:text-lg font-bold text-slate-100 mb-2 text-center sm:text-left">${anime.title}</h2>
+            <div class="flex justify-center sm:justify-start gap-2 text-xs mb-4">
+              <span class="bg-amber-500/10 text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-500/20">★ ${score}</span>
+              <span class="bg-indigo-500/10 text-indigo-400 font-semibold px-2 py-0.5 rounded border border-indigo-500/20 uppercase">${anime.media_type || 'TV'}</span>
+            </div>
+            ${editorHtml}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    async function saveAnimeStatus(id) {
+      const status = document.getElementById('edit-status').value;
+      const score = parseInt(document.getElementById('edit-score').value);
+      try {
+        await fetchMAL(`anime/${id}/my_list_status`, 'PATCH', { status, score });
+        const item = itemsData.find(i => i.node.id === id);
+        if (item) item.node.my_list_status = { status, score };
+        closeModal();
+        renderGrid(itemsData);
+      } catch (e) {
+        alert('Erreur lors de la sauvegarde.');
+      }
+    }
+
+    async function deleteAnimeStatus(id) {
+      if (!confirm('Retirer cet anime de votre liste ?')) return;
+      try {
+        await fetchMAL(`anime/${id}/my_list_status`, 'DELETE');
+        const idx = itemsData.findIndex(i => i.node
