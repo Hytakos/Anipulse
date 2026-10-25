@@ -3,126 +3,160 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AniPulse - MAL Sync</title>
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#0f172a">
+  <title>AniPulse</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script>
-    if("serviceWorker" in navigator){ navigator.serviceWorker.register("./sw.js"); }
-    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { dark: { 950: '#090d16', 900: '#0f172a', 800: '#1e293b' } } } } }
+    // SCRIPT DE DESTRUCTION DU CACHE
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        for (let reg of regs) { reg.unregister(); }
+      });
+    }
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { dark: { 950: '#090d16', 900: '#0f172a', 800: '#1e293b' } } } } };
   </script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen pb-20 md:pb-0 selection:bg-indigo-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen pb-20">
   
-  <div id="app" class="flex flex-col min-h-screen">
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold"><i class="fa-solid fa-play"></i></div>
+      <span class="text-lg font-bold">AniPulse</span>
+    </div>
+    <!-- BOUTON CONNEXION EN DUR DANS LE HTML -->
+    <div id="user-area">
+      <button onclick="loginMAL()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-md">Connexion</button>
+    </div>
+  </header>
+
+  <main class="p-4">
+    <h1 id="page-title" class="text-xl font-bold mb-6"><span class="text-indigo-500 mr-2">●</span>Top Animes</h1>
     
-    <!-- En-tête -->
-    <header class="bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex flex-col sm:flex-row items-center gap-3">
-      <div class="flex items-center justify-between w-full sm:w-auto gap-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/25">
-            <i class="fa-solid fa-play"></i>
-          </div>
-          <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">AniPulse</span>
-        </div>
-        
-        <div id="user-area-mobile" class="sm:hidden"></div>
-      </div>
-
-      <div class="w-full sm:flex-1 sm:max-w-md sm:mx-auto">
-        <div class="relative">
-          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-          <input id="search-input" type="text" placeholder="Rechercher un anime..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-100 focus:border-indigo-500 outline-none"/>
-        </div>
-      </div>
-
-      <div id="user-area-desktop" class="hidden sm:flex items-center gap-3"></div>
-    </header>
-
-    <div class="flex flex-1">
-      <aside class="hidden md:flex w-64 bg-slate-900/40 border-r border-slate-800/80 p-4 flex-col gap-6 shrink-0">
-        <div>
-          <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 px-3">Catalogue</p>
-          <nav class="space-y-1">
-            <button onclick="setTab('top')" id="nav-top" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition text-indigo-400 bg-indigo-600/20 font-semibold">
-              <i class="fa-solid fa-fire text-amber-500"></i><span>Top Animes</span>
-            </button>
-            <button onclick="setTab('airing')" id="nav-airing" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition text-slate-400 hover:text-slate-200">
-              <i class="fa-solid fa-tv text-sky-400"></i><span>Saison Actuelle</span>
-            </button>
-            <button onclick="setTab('watchlist')" id="nav-watchlist" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition text-slate-400 hover:text-slate-200 mt-4 border border-slate-800 bg-slate-900/50">
-              <i class="fa-solid fa-bookmark text-emerald-400"></i><span>Ma Liste Officielle</span>
-            </button>
-          </nav>
-        </div>
-      </aside>
-
-      <main class="flex-1 p-4 sm:p-6 md:p-8">
-        <div class="flex items-center justify-between mb-4 sm:mb-6">
-          <h1 id="page-title" class="text-lg sm:text-2xl font-bold text-slate-100 flex items-center gap-2.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>Top Animes
-          </h1>
-        </div>
-
-        <div id="main-content">
-          <div class="flex flex-col items-center justify-center py-20">
-            <div class="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
-            <p class="text-slate-400 text-xs">Chargement MyAnimeList...</p>
-          </div>
-        </div>
-      </main>
-    </div>
-
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 flex justify-around py-2 px-3 z-40">
-      <button onclick="setTab('top')" id="mob-nav-top" class="flex flex-col items-center gap-1 py-1 text-indigo-400">
-        <i class="fa-solid fa-fire text-base"></i>
-        <span class="text-[10px] font-medium">Top</span>
-      </button>
-      <button onclick="setTab('airing')" id="mob-nav-airing" class="flex flex-col items-center gap-1 py-1 text-slate-400">
-        <i class="fa-solid fa-tv text-base"></i>
-        <span class="text-[10px] font-medium">Saison</span>
-      </button>
-      <button onclick="setTab('watchlist')" id="mob-nav-watchlist" class="flex flex-col items-center gap-1 py-1 text-slate-400">
-        <i class="fa-solid fa-bookmark text-base"></i>
-        <span class="text-[10px] font-medium">Ma Liste</span>
-      </button>
-    </nav>
-
-    <div id="modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div id="modal-card" class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-xl w-full p-5 relative max-h-[90vh] overflow-y-auto shadow-2xl">
-        <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-xl"></i></button>
-        <div id="modal-body"></div>
+    <div id="main-content">
+      <div class="flex flex-col items-center py-20">
+        <div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
+        <p class="text-slate-400 text-xs">Vérification de la connexion...</p>
       </div>
     </div>
+  </main>
 
-  </div>
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-2 px-3 z-40">
+    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 text-indigo-400">
+      <i class="fa-solid fa-fire text-lg"></i><span class="text-[10px] font-medium">Top</span>
+    </button>
+    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+      <i class="fa-solid fa-tv text-lg"></i><span class="text-[10px] font-medium">Saison</span>
+    </button>
+    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+      <i class="fa-solid fa-bookmark text-lg"></i><span class="text-[10px] font-medium">Ma Liste</span>
+    </button>
+  </nav>
 
   <script>
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
-    
     let currentTab = 'top';
-    let itemsData = [];
-    let userProfile = null;
-
-    const generateRandomString = (length) => {
-      const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-      return Array.from(crypto.getRandomValues(new Uint8Array(length))).map(x => charset[x % charset.length]).join('');
-    };
 
     function loginMAL() {
-      const verifier = generateRandomString(128);
+      const verifier = Array.from(crypto.getRandomValues(new Uint8Array(128))).map(x => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[x % 66]).join('');
       localStorage.setItem('mal_code_verifier', verifier);
       window.location.href = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${verifier}&code_challenge_method=plain`;
     }
 
-    function logoutMAL() {
-      localStorage.removeItem('mal_access_token');
-      userProfile = null;
-      window.location.href = window.location.pathname;
+    function setTab(tab) {
+      currentTab = tab;
+      document.getElementById('nav-top').className = (tab === 'top') ? 'flex flex-col items-center gap-1 py-1 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 text-slate-400';
+      document.getElementById('nav-airing').className = (tab === 'airing') ? 'flex flex-col items-center gap-1 py-1 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 text-slate-400';
+      document.getElementById('nav-watchlist').className = (tab === 'watchlist') ? 'flex flex-col items-center gap-1 py-1 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 text-slate-400';
+      
+      const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste' };
+      document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>${titles[tab]}`;
+      loadData();
     }
 
-    async function fetchMAL(endpoint, method = 'GET', body = null) {
-      const token = localStorage.getItem('mal_access
-                                         
+    async function loadData() {
+      const container = document.getElementById('main-content');
+      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement en cours...</p></div>`;
+      
+      try {
+        const token = localStorage.getItem('mal_access_token');
+        if (currentTab === 'watchlist' && !token) {
+          container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre liste</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
+          return;
+        }
+
+        let endpoint = (currentTab === 'watchlist') 
+          ? 'users/@me/animelist?limit=40&fields=id,title,main_picture,mean' 
+          : `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=40&fields=id,title,main_picture,mean`;
+        
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : { 'X-MAL-CLIENT-ID': CLIENT_ID };
+
+        const res = await fetch(`${SERVEUR_URL}/api/${endpoint}`, { headers });
+        if (res.status === 401) { localStorage.removeItem('mal_access_token'); loginMAL(); return; }
+        if (!res.ok) throw new Error("Le serveur Render est inaccessible.");
+        
+        const json = await res.json();
+        const items = json.data || [];
+        
+        if (items.length === 0) {
+          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun anime trouvé.</p>`;
+          return;
+        }
+
+        let html = `<div class="grid grid-cols-2 gap-4">`;
+        items.forEach(item => {
+          const img = item.node.main_picture?.large || item.node.main_picture?.medium || '';
+          const score = item.node.mean || '-';
+          html += `
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden relative">
+              <img src="${img}" class="w-full aspect-[3/4] object-cover" />
+              <div class="absolute top-2 right-2 bg-slate-950/80 px-2 py-1 rounded-lg text-[10px] font-bold text-amber-400">★ ${score}</div>
+              <div class="p-3"><h3 class="font-bold text-slate-200 text-xs line-clamp-2">${item.node.title}</h3></div>
+            </div>`;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+
+      } catch (e) {
+        container.innerHTML = `<div class="bg-rose-900/20 border border-rose-800 p-4 rounded-xl text-center"><p class="text-rose-400 text-xs">${e.message}</p></div>`;
+      }
+    }
+
+    async function initApp() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+
+      if (code) {
+        try {
+          const res = await fetch(`${SERVEUR_URL}/oauth/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'authorization_code', code: code, code_verifier: localStorage.getItem('mal_code_verifier') })
+          });
+          const data = await res.json();
+          if (data.access_token) {
+            localStorage.setItem('mal_access_token', data.access_token);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch(e) {}
+      }
+
+      const token = localStorage.getItem('mal_access_token');
+      if (token) {
+        try {
+          const userRes = await fetch(`${SERVEUR_URL}/api/users/@me`, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (userRes.ok) {
+            const user = await userRes.json();
+            document.getElementById('user-area').innerHTML = `<div class="flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-lg border border-slate-700"><span class="text-emerald-400 text-xs font-bold">${user.name}</span><button onclick="localStorage.removeItem('mal_access_token'); window.location.reload();" class="text-slate-400 hover:text-rose-400 ml-1"><i class="fa-solid fa-right-from-bracket"></i></button></div>`;
+          } else {
+            localStorage.removeItem('mal_access_token');
+          }
+        } catch(e) {}
+      }
+      loadData();
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
