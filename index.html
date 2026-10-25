@@ -43,7 +43,6 @@
     
     <div id="global-filters" class="flex flex-col gap-2 mb-4 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
       
-      <!-- Filtres Statut (Uniquement Ma Liste) -->
       <div id="watchlist-status-filters" class="hidden gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap border-b border-slate-800 mb-1">
         <button onclick="setStatusFilter('all')" id="status-all" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-indigo-600 text-white transition">Tous</button>
         <button onclick="setStatusFilter('watching')" id="status-watching" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En cours</button>
@@ -53,7 +52,6 @@
         <button onclick="setStatusFilter('dropped')" id="status-dropped" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Abandonné</button>
       </div>
 
-      <!-- Filtres Formats et Genres (Global) -->
       <div id="media-filters" class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap items-center">
         <select id="genre-select" onchange="setGenreFilter(this.value)" class="bg-slate-950 border border-slate-700 text-[10px] rounded-lg px-2 py-1 outline-none text-slate-200 font-semibold h-[26px]">
           <option value="all">Tous les genres</option>
@@ -78,7 +76,6 @@
         <button onclick="setMediaFilter('ova')" id="media-ova" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800 h-[26px]">OVA</button>
       </div>
 
-      <!-- Tri (Uniquement Ma Liste) -->
       <div id="watchlist-sort" class="hidden items-center gap-2 mt-1 border-t border-slate-800 pt-2">
         <i class="fa-solid fa-arrow-down-a-z text-slate-500 text-xs"></i>
         <select id="sort-select" onchange="setSort(this.value)" class="bg-slate-950 border border-slate-700 text-[11px] rounded-lg px-2 py-1.5 outline-none text-slate-200 w-full font-medium">
@@ -99,16 +96,19 @@
   </main>
 
   <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-2 px-1 z-40">
-    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 px-3 text-indigo-400">
+    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 px-2 text-indigo-400">
       <i class="fa-solid fa-fire text-lg"></i><span class="text-[10px] font-medium">Top</span>
     </button>
-    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
       <i class="fa-solid fa-tv text-lg"></i><span class="text-[10px] font-medium">Saison</span>
     </button>
-    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
       <i class="fa-solid fa-bookmark text-lg"></i><span class="text-[10px] font-medium">Liste</span>
     </button>
-    <button onclick="setTab('profile')" id="nav-profile" class="flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+    <button onclick="setTab('random')" id="nav-random" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
+      <i class="fa-solid fa-dice text-lg"></i><span class="text-[10px] font-medium">Aléatoire</span>
+    </button>
+    <button onclick="setTab('profile')" id="nav-profile" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
       <i class="fa-solid fa-user text-lg"></i><span class="text-[10px] font-medium">Profil</span>
     </button>
   </nav>
@@ -158,11 +158,11 @@
 
     function setTab(tab) {
       currentTab = tab;
-      ['top', 'airing', 'watchlist', 'profile'].forEach(t => {
-        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-3 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-3 text-slate-400';
+      ['top', 'airing', 'watchlist', 'random', 'profile'].forEach(t => {
+        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-2 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-2 text-slate-400';
       });
 
-      const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste', profile: 'Mon Profil' };
+      const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste', random: 'Anime Aléatoire', profile: 'Mon Profil' };
       document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>${titles[tab]}`;
       
       const globalFilters = document.getElementById('global-filters');
@@ -171,7 +171,7 @@
       const searchContainer = document.getElementById('search-container');
       const searchInput = document.getElementById('search-input');
       
-      if (tab === 'profile') {
+      if (tab === 'profile' || tab === 'random') {
         globalFilters.classList.add('hidden');
         searchContainer.classList.add('hidden');
       } else {
@@ -301,7 +301,7 @@
           return;
         }
 
-        if (currentTab === 'watchlist') {
+        if (currentTab === 'watchlist' || currentTab === 'random') {
           if (!localStorage.getItem('mal_access_token')) {
             container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre liste</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
             return;
@@ -319,6 +319,11 @@
             }
           }
           itemsData = allItems;
+          
+          if (currentTab === 'random') {
+            renderRandom();
+            return;
+          }
         } else {
           const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=100&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres`;
           const json = await fetchMAL(endpoint);
@@ -330,6 +335,36 @@
       }
     }
 
+    function renderRandom() {
+      const container = document.getElementById('main-content');
+      const planToWatch = itemsData.filter(item => item.node.my_list_status && item.node.my_list_status.status === 'plan_to_watch');
+
+      if (planToWatch.length === 0) {
+        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-ghost text-4xl text-slate-600 mb-4"></i><p class="text-slate-400 text-sm">Votre liste "À voir" est vide.</p></div>`;
+        return;
+      }
+
+      const randomAnime = planToWatch[Math.floor(Math.random() * planToWatch.length)];
+      const img = randomAnime.node.main_picture?.large || randomAnime.node.main_picture?.medium || '';
+      
+      container.innerHTML = `
+        <div class="flex flex-col items-center py-10">
+          <button onclick="renderRandom()" class="mb-8 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center gap-2 transition transform active:scale-95"><i class="fa-solid fa-dice"></i> Relancer</button>
+          
+          <div onclick="openModal(${randomAnime.node.id})" class="w-64 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden relative cursor-pointer hover:border-indigo-500/50 transition shadow-2xl">
+            <div class="relative aspect-[3/4] bg-slate-950">
+              <img src="${img}" class="w-full h-full object-cover" />
+              <div class="absolute top-2 right-2 bg-slate-950/85 backdrop-blur px-2 py-1 rounded-lg text-xs font-bold text-amber-400 border border-slate-800">★ ${randomAnime.node.mean || '-'}</div>
+            </div>
+            <div class="p-4 text-center">
+              <h3 class="font-bold text-slate-100 text-sm line-clamp-2">${randomAnime.node.title}</h3>
+              <span class="text-xs text-indigo-400 mt-1 block uppercase font-semibold">${randomAnime.node.media_type || 'TV'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderGrid() {
       const container = document.getElementById('main-content');
       if (!itemsData || itemsData.length === 0) {
@@ -339,17 +374,14 @@
 
       let dataToRender = [...itemsData];
       
-      // Filtrage du type de média
       if (currentMediaFilter !== 'all') {
         dataToRender = dataToRender.filter(item => item.node.media_type === currentMediaFilter);
       }
 
-      // Filtrage par Genre
       if (currentGenreFilter !== 'all') {
         dataToRender = dataToRender.filter(item => item.node.genres && item.node.genres.some(g => g.name === currentGenreFilter));
       }
 
-      // Filtrages spécifiques à la Watchlist
       if (currentTab === 'watchlist') {
         if (currentStatusFilter !== 'all') {
           dataToRender = dataToRender.filter(item => item.node.my_list_status && item.node.my_list_status.status === currentStatusFilter);
@@ -409,7 +441,7 @@
         const status = anime.my_list_status ? anime.my_list_status.status : 'plan_to_watch';
         const userScore = anime.my_list_status ? anime.my_list_status.score : 0;
         
-        // CORRECTION DE LA VARIABLE ICI
+        // RECUPERATION DU CHAMP DEPUIS L'API
         const epsWatched = anime.my_list_status ? anime.my_list_status.num_episodes_watched : 0;
         
         const startDate = anime.my_list_status?.start_date || '';
@@ -503,13 +535,13 @@
       const status = document.getElementById('edit-status').value;
       const score = parseInt(document.getElementById('edit-score').value);
       
-      // CORRECTION DE LA VARIABLE ICI POUR LA SAUVEGARDE
-      const num_episodes_watched = parseInt(document.getElementById('edit-eps').value) || 0;
+      // ENVOI DU CHAMP AVEC LA VARIABLE ATTENDUE PAR LE PATCH
+      const num_watched_episodes = parseInt(document.getElementById('edit-eps').value) || 0;
       
       const start_date = document.getElementById('edit-start').value;
       const finish_date = document.getElementById('edit-finish').value;
       
-      const body = { status, score, num_episodes_watched };
+      const body = { status, score, num_watched_episodes };
       if (start_date) body.start_date = start_date;
       if (finish_date) body.finish_date = finish_date;
 
@@ -521,13 +553,17 @@
             item.node.my_list_status = item.node.my_list_status || {};
             item.node.my_list_status.status = status;
             item.node.my_list_status.score = score;
-            item.node.my_list_status.num_episodes_watched = num_episodes_watched;
+            item.node.my_list_status.num_episodes_watched = num_watched_episodes; // Sauvegarde locale du retour GET
             if(start_date) item.node.my_list_status.start_date = start_date;
             if(finish_date) item.node.my_list_status.finish_date = finish_date;
         }
         
         closeModal();
-        renderGrid();
+        if(currentTab === 'random') {
+            renderRandom();
+        } else {
+            renderGrid();
+        }
       } catch (e) {
         alert('Erreur lors de la sauvegarde.');
         btn.innerText = "Enregistrer";
@@ -545,7 +581,11 @@
           if (currentTab === 'watchlist') itemsData.splice(idx, 1);
         }
         closeModal();
-        renderGrid();
+        if(currentTab === 'random') {
+            renderRandom();
+        } else {
+            renderGrid();
+        }
       } catch (e) {
         alert('Erreur lors de la suppression.');
       }
