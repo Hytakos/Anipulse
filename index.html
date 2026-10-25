@@ -33,7 +33,7 @@
       </div>
     </div>
     <div id="search-container" class="relative w-full">
-      <input type="text" id="search-input" placeholder="Rechercher un anime..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" onkeyup="handleSearch(event)">
+      <input type="text" id="search-input" placeholder="Rechercher un anime (Entrée pour valider)..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" onkeyup="handleSearch(event)">
       <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
     </div>
   </header>
@@ -186,7 +186,7 @@
           globalFilters.classList.remove('hidden');
           statusFilters.classList.replace('flex', 'hidden');
           sortSelect.classList.replace('flex', 'hidden');
-          searchInput.placeholder = "Rechercher un anime sur MAL...";
+          searchInput.placeholder = "Rechercher un anime (Entrée pour valider)...";
           currentSearch = '';
           searchInput.value = '';
         }
@@ -229,9 +229,11 @@
     function handleSearch(e) {
       const q = e.target.value.trim().toLowerCase();
       if (currentTab === 'watchlist') {
+        // Filtrage en direct pour "Ma Liste"
         currentSearch = q;
         renderGrid();
       } else {
+        // Recherche globale uniquement sur la touche "Entrée"
         if (e.key === 'Enter') {
           if (!q) return;
           executeGlobalSearch(q);
@@ -242,8 +244,9 @@
     async function executeGlobalSearch(q) {
       const container = document.getElementById('main-content');
       container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div><p class="text-slate-400 text-xs mt-3">Recherche globale...</p></div>`;
+      document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>Résultats: ${q}`;
       try {
-        const json = await fetchMAL(`anime?q=${encodeURIComponent(q)}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres`);
+        const json = await fetchMAL(`anime?q=${encodeURIComponent(q)}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres,num_episodes`);
         itemsData = (json && Array.isArray(json.data)) ? json.data : [];
         renderGrid();
       } catch (e) {
@@ -538,13 +541,11 @@
       const newStatus = statusSelect.value;
       const today = getTodayDate();
 
-      // Si on choisit Terminé, met automatiquement les eps au max et la date de fin du jour
       if (newStatus === 'completed' && maxEps !== 9999) {
         epsInput.value = maxEps;
         finishInput.value = today;
       }
 
-      // Si l'anime était à voir ou autre et passe en cours (watching), ajoute la date de début du jour si vide
       if (newStatus === 'watching' && !startInput.value) {
         startInput.value = today;
       }
@@ -561,7 +562,6 @@
         epsInput.value = maxEps;
       }
 
-      // Si le nombre d'épisodes vus atteint la limite totale, passe le statut à "Terminé" et met la date de fin
       if (maxEps !== 9999 && val >= maxEps && maxEps > 0) {
         statusSelect.value = 'completed';
         if (!finishInput.value) {
