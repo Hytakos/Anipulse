@@ -32,10 +32,12 @@
         <button onclick="loginMAL()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-md">Connexion</button>
       </div>
     </div>
-    <div id="search-container" class="relative w-full">
-      <input type="text" id="search-input" placeholder="Rechercher un anime (Entrée pour valider)..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" onkeyup="handleSearch(event)">
-      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-    </div>
+    <form id="search-container" class="relative w-full" onsubmit="handleSearchSubmit(event)">
+      <input type="text" id="search-input" placeholder="Rechercher un anime..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" oninput="handleLiveSearch(event)">
+      <button type="submit" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs hover:text-indigo-400 p-1">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
+    </form>
   </header>
 
   <main class="p-4">
@@ -180,13 +182,13 @@
           globalFilters.classList.remove('hidden');
           statusFilters.classList.replace('hidden', 'flex');
           sortSelect.classList.replace('hidden', 'flex');
-          searchInput.placeholder = "Filtrer ma liste localement...";
+          searchInput.placeholder = "Filtrer ma liste...";
           setStatusFilter('all');
         } else {
           globalFilters.classList.remove('hidden');
           statusFilters.classList.replace('flex', 'hidden');
           sortSelect.classList.replace('flex', 'hidden');
-          searchInput.placeholder = "Rechercher un anime (Entrée pour valider)...";
+          searchInput.placeholder = "Rechercher un anime...";
           currentSearch = '';
           searchInput.value = '';
         }
@@ -226,18 +228,25 @@
       renderGrid();
     }
 
-    function handleSearch(e) {
-      const q = e.target.value.trim().toLowerCase();
+    function handleLiveSearch(e) {
       if (currentTab === 'watchlist') {
-        // Filtrage en direct pour "Ma Liste"
-        currentSearch = q;
+        currentSearch = e.target.value.trim().toLowerCase();
+        renderGrid();
+      }
+    }
+
+    function handleSearchSubmit(e) {
+      e.preventDefault(); 
+      document.getElementById('search-input').blur(); 
+      
+      const q = document.getElementById('search-input').value.trim();
+      if (!q) return;
+
+      if (currentTab === 'watchlist') {
+        currentSearch = q.toLowerCase();
         renderGrid();
       } else {
-        // Recherche globale uniquement sur la touche "Entrée"
-        if (e.key === 'Enter') {
-          if (!q) return;
-          executeGlobalSearch(q);
-        }
+        executeGlobalSearch(q);
       }
     }
 
