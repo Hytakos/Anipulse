@@ -1,0 +1,15 @@
+{
+  "name": "AniPulse MAL",
+  "short_name": "AniPulse",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3074/3074058.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
