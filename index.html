@@ -307,7 +307,7 @@
             return;
           }
           let allItems = [];
-          let endpoint = 'users/@me/animelist?limit=1000&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres';
+          let endpoint = 'users/@me/animelist?limit=1000&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres,num_episodes';
           
           while (endpoint && allItems.length < 5000) {
             const json = await fetchMAL(endpoint);
@@ -325,7 +325,7 @@
             return;
           }
         } else {
-          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=100&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres`;
+          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=100&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users,genres,num_episodes`;
           const json = await fetchMAL(endpoint);
           itemsData = (json && Array.isArray(json.data)) ? json.data : [];
         }
@@ -440,8 +440,6 @@
         const score = anime.mean || 'N/A';
         const status = anime.my_list_status ? anime.my_list_status.status : 'plan_to_watch';
         const userScore = anime.my_list_status ? anime.my_list_status.score : 0;
-        
-        // RECUPERATION DU CHAMP DEPUIS L'API
         const epsWatched = anime.my_list_status ? anime.my_list_status.num_episodes_watched : 0;
         
         const startDate = anime.my_list_status?.start_date || '';
@@ -458,7 +456,7 @@
               <div class="grid grid-cols-2 gap-2.5 mb-2.5">
                 <div>
                   <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Statut</label>
-                  <select id="edit-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                  <select id="edit-status" onchange="onStatusChange(${maxEps})" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
                     <option value="plan_to_watch" ${status === 'plan_to_watch' ? 'selected' : ''}>À voir</option>
                     <option value="watching" ${status === 'watching' ? 'selected' : ''}>En cours</option>
                     <option value="completed" ${status === 'completed' ? 'selected' : ''}>Terminé</option>
@@ -476,7 +474,7 @@
               <div class="grid grid-cols-2 gap-2.5 mb-3">
                 <div class="col-span-2">
                   <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Épisodes vus (Max: ${maxEps === 9999 ? '?' : maxEps})</label>
-                  <input type="number" id="edit-eps" value="${epsWatched}" min="0" max="${maxEps}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
+                  <input type="number" id="edit-eps" value="${epsWatched}" min="0" max="${maxEps === 9999 ? 99999 : maxEps}" oninput="onEpsChange(${maxEps})" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 outline-none">
                 </div>
                 <div>
                   <label class="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Date de début</label>
@@ -488,7 +486,7 @@
                 </div>
               </div>
               <div class="flex gap-2 mt-1">
-                <button onclick="saveAnimeStatus(${id})" id="btn-save" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition">Enregistrer</button>
+                <button onclick="saveAnimeStatus(${id}, ${maxEps})" id="btn-save" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition">Enregistrer</button>
                 ${anime.my_list_status ? `<button onclick="deleteAnimeStatus(${id})" class="bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 border border-slate-700 px-3 rounded-lg transition"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
               </div>
             </div>
@@ -523,21 +521,72 @@
       }
     }
 
+    function getTodayDate() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function onStatusChange(maxEps) {
+      const statusSelect = document.getElementById('edit-status');
+      const epsInput = document.getElementById('edit-eps');
+      const startInput = document.getElementById('edit-start');
+      const finishInput = document.getElementById('edit-finish');
+      
+      const newStatus = statusSelect.value;
+      const today = getTodayDate();
+
+      // Si on choisit Terminé, met automatiquement les eps au max et la date de fin du jour
+      if (newStatus === 'completed' && maxEps !== 9999) {
+        epsInput.value = maxEps;
+        finishInput.value = today;
+      }
+
+      // Si l'anime était à voir ou autre et passe en cours (watching), ajoute la date de début du jour si vide
+      if (newStatus === 'watching' && !startInput.value) {
+        startInput.value = today;
+      }
+    }
+
+    function onEpsChange(maxEps) {
+      const epsInput = document.getElementById('edit-eps');
+      const statusSelect = document.getElementById('edit-status');
+      const finishInput = document.getElementById('edit-finish');
+      
+      let val = parseInt(epsInput.value) || 0;
+      if (maxEps !== 9999 && val > maxEps) {
+        val = maxEps;
+        epsInput.value = maxEps;
+      }
+
+      // Si le nombre d'épisodes vus atteint la limite totale, passe le statut à "Terminé" et met la date de fin
+      if (maxEps !== 9999 && val >= maxEps && maxEps > 0) {
+        statusSelect.value = 'completed';
+        if (!finishInput.value) {
+          finishInput.value = getTodayDate();
+        }
+      }
+    }
+
     function closeModal() {
       document.getElementById('modal').classList.add('hidden');
     }
 
-    async function saveAnimeStatus(id) {
+    async function saveAnimeStatus(id, maxEps) {
       const btn = document.getElementById('btn-save');
       btn.innerText = "Sauvegarde...";
       btn.disabled = true;
       
-      const status = document.getElementById('edit-status').value;
+      let status = document.getElementById('edit-status').value;
       const score = parseInt(document.getElementById('edit-score').value);
+      let num_watched_episodes = parseInt(document.getElementById('edit-eps').value) || 0;
       
-      // ENVOI DU CHAMP AVEC LA VARIABLE ATTENDUE PAR LE PATCH
-      const num_watched_episodes = parseInt(document.getElementById('edit-eps').value) || 0;
-      
+      if (maxEps !== 9999 && num_watched_episodes >= maxEps && maxEps > 0) {
+        status = 'completed';
+      }
+
       const start_date = document.getElementById('edit-start').value;
       const finish_date = document.getElementById('edit-finish').value;
       
@@ -553,7 +602,7 @@
             item.node.my_list_status = item.node.my_list_status || {};
             item.node.my_list_status.status = status;
             item.node.my_list_status.score = score;
-            item.node.my_list_status.num_episodes_watched = num_watched_episodes; // Sauvegarde locale du retour GET
+            item.node.my_list_status.num_episodes_watched = num_watched_episodes;
             if(start_date) item.node.my_list_status.start_date = start_date;
             if(finish_date) item.node.my_list_status.finish_date = finish_date;
         }
