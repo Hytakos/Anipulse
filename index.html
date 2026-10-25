@@ -343,7 +343,6 @@
         } catch(e) {}
       }
 
-      // Lance le chargement de la grille IMMÉDIATEMENT (n'attend plus le profil)
       loadData();
 
       const token = localStorage.getItem('mal_access_token');
@@ -353,4 +352,11 @@
             userProfile = user;
             document.getElementById('user-area').innerHTML = `<div class="flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-lg border border-slate-700"><span class="text-emerald-400 text-xs font-bold">${userProfile.name}</span><button onclick="localStorage.removeItem('mal_access_token'); window.location.reload();" class="text-slate-400 hover:text-rose-400 ml-1"><i class="fa-solid fa-right-from-bracket"></i></button></div>`;
           }
-        }).c
+        }).catch(() => {});
+      }
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</
