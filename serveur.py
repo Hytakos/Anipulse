@@ -5,7 +5,6 @@ import urllib.error
 import ssl
 import os
 
-# Render attribue dynamiquement un port via les variables d'environnement
 PORT = int(os.environ.get("PORT", 10000))
 
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
@@ -15,7 +14,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-MAL-CLIENT-ID')
 
     def do_OPTIONS(self):
-        self.send_response(200, "ok")
+        self.send_response(200)
         self.send_cors_headers()
         self.end_headers()
 
@@ -29,10 +28,10 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         req = urllib.request.Request(url, method=self.command)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
         
-        # Filtrage des en-têtes web pour simuler une requête serveur
         for k, v in self.headers.items():
-            if k.lower() not in ['host', 'connection', 'content-length', 'origin', 'referer', 'accept-encoding']:
+            if k.lower() not in ['host', 'connection', 'content-length', 'origin', 'referer', 'accept-encoding', 'user-agent']:
                 req.add_header(k, v)
         
         content_length = int(self.headers.get('Content-Length', 0))
@@ -44,7 +43,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         ctx.verify_mode = ssl.CERT_NONE
         
         try:
-            with urllib.request.urlopen(req, context=ctx) as response:
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as response:
                 self.send_response(response.status)
                 self.send_cors_headers()
                 for k, v in response.getheaders():
@@ -82,6 +81,4 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
 socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(("", PORT), ProxyHandler) as httpd:
-    print(f"✅ Relais lance sur le port {PORT}")
     httpd.serve_forever()
-                            
