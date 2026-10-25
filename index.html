@@ -41,16 +41,30 @@
   <main class="p-4">
     <h1 id="page-title" class="text-xl font-bold mb-4"><span class="text-indigo-500 mr-2">●</span>Top Animes</h1>
     
-    <div id="watchlist-controls" class="hidden flex flex-col gap-3 mb-4 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
-      <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap">
-        <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-indigo-600 text-white transition">Tous</button>
-        <button onclick="setFilter('watching')" id="filter-watching" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En cours</button>
-        <button onclick="setFilter('plan_to_watch')" id="filter-plan_to_watch" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">À voir</button>
-        <button onclick="setFilter('completed')" id="filter-completed" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Terminé</button>
-        <button onclick="setFilter('on_hold')" id="filter-on_hold" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En pause</button>
-        <button onclick="setFilter('dropped')" id="filter-dropped" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Abandonné</button>
+    <div id="global-filters" class="flex flex-col gap-2 mb-4 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
+      
+      <!-- Filtres Statut (Uniquement Ma Liste) -->
+      <div id="watchlist-status-filters" class="hidden gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap border-b border-slate-800 mb-1">
+        <button onclick="setStatusFilter('all')" id="status-all" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-indigo-600 text-white transition">Tous</button>
+        <button onclick="setStatusFilter('watching')" id="status-watching" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En cours</button>
+        <button onclick="setStatusFilter('plan_to_watch')" id="status-plan_to_watch" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">À voir</button>
+        <button onclick="setStatusFilter('completed')" id="status-completed" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Terminé</button>
+        <button onclick="setStatusFilter('on_hold')" id="status-on_hold" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">En pause</button>
+        <button onclick="setStatusFilter('dropped')" id="status-dropped" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700">Abandonné</button>
       </div>
-      <div class="flex items-center gap-2 px-1">
+
+      <!-- Filtres Formats (Global) -->
+      <div id="media-filters" class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap">
+        <button onclick="setMediaFilter('all')" id="media-all" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-700 text-white transition">Tous les formats</button>
+        <button onclick="setMediaFilter('tv')" id="media-tv" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800">Série TV</button>
+        <button onclick="setMediaFilter('movie')" id="media-movie" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800">Film</button>
+        <button onclick="setMediaFilter('ova')" id="media-ova" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800">OVA/OAD</button>
+        <button onclick="setMediaFilter('special')" id="media-special" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800">Spécial</button>
+        <button onclick="setMediaFilter('ona')" id="media-ona" class="px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800">ONA</button>
+      </div>
+
+      <!-- Tri (Uniquement Ma Liste) -->
+      <div id="watchlist-sort" class="hidden items-center gap-2 mt-1">
         <i class="fa-solid fa-arrow-down-a-z text-slate-500 text-xs"></i>
         <select id="sort-select" onchange="setSort(this.value)" class="bg-slate-950 border border-slate-700 text-[11px] rounded-lg px-2 py-1.5 outline-none text-slate-200 w-full font-medium">
           <option value="title">Trier par Titre</option>
@@ -95,7 +109,8 @@
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
     let currentTab = 'top';
-    let currentFilter = 'all';
+    let currentStatusFilter = 'all';
+    let currentMediaFilter = 'all';
     let currentSort = 'title';
     let currentSearch = '';
     let itemsData = [];
@@ -134,27 +149,45 @@
       const titles = { top: 'Top Animes', airing: 'Saison Actuelle', watchlist: 'Ma Liste', profile: 'Mon Profil' };
       document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>${titles[tab]}`;
       
-      const filterBar = document.getElementById('watchlist-controls');
+      const globalFilters = document.getElementById('global-filters');
+      const statusFilters = document.getElementById('watchlist-status-filters');
+      const sortSelect = document.getElementById('watchlist-sort');
       const searchInput = document.getElementById('search-input');
       
-      if(tab === 'watchlist') {
-        filterBar.classList.remove('hidden');
-        searchInput.placeholder = "Filtrer ma liste...";
-        setFilter('all');
+      if (tab === 'profile') {
+        globalFilters.classList.add('hidden');
+      } else if (tab === 'watchlist') {
+        globalFilters.classList.remove('hidden');
+        statusFilters.classList.replace('hidden', 'flex');
+        sortSelect.classList.replace('hidden', 'flex');
+        searchInput.placeholder = "Filtrer ma liste localement...";
+        setStatusFilter('all');
       } else {
-        filterBar.classList.add('hidden');
+        globalFilters.classList.remove('hidden');
+        statusFilters.classList.replace('flex', 'hidden');
+        sortSelect.classList.replace('flex', 'hidden');
         searchInput.placeholder = "Rechercher un anime sur MAL...";
         currentSearch = '';
         searchInput.value = '';
       }
+      setMediaFilter('all');
       loadData();
     }
 
-    function setFilter(filter) {
-      currentFilter = filter;
+    function setStatusFilter(filter) {
+      currentStatusFilter = filter;
       ['all', 'watching', 'completed', 'plan_to_watch', 'on_hold', 'dropped'].forEach(f => {
-        const btn = document.getElementById(`filter-${f}`);
+        const btn = document.getElementById(`status-${f}`);
         if(btn) btn.className = (f === filter) ? 'px-3 py-1.5 rounded-full text-[11px] font-semibold bg-indigo-600 text-white transition' : 'px-3 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 transition hover:bg-slate-700';
+      });
+      renderGrid();
+    }
+
+    function setMediaFilter(filter) {
+      currentMediaFilter = filter;
+      ['all', 'tv', 'movie', 'ova', 'special', 'ona'].forEach(f => {
+        const btn = document.getElementById(`media-${f}`);
+        if(btn) btn.className = (f === filter) ? 'px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-700 text-white transition' : 'px-3 py-1 rounded-lg text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition hover:bg-slate-800';
       });
       renderGrid();
     }
@@ -244,7 +277,6 @@
             container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre liste</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
             return;
           }
-          
           let allItems = [];
           let endpoint = 'users/@me/animelist?limit=1000&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users';
           
@@ -259,7 +291,7 @@
           }
           itemsData = allItems;
         } else {
-          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users`;
+          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=100&fields=id,title,main_picture,mean,media_type,my_list_status,num_list_users`;
           const json = await fetchMAL(endpoint);
           itemsData = (json && Array.isArray(json.data)) ? json.data : [];
         }
@@ -278,9 +310,15 @@
 
       let dataToRender = [...itemsData];
       
+      // Filtrage du type de média (TV, Film, etc) pour TOUS les onglets
+      if (currentMediaFilter !== 'all') {
+        dataToRender = dataToRender.filter(item => item.node.media_type === currentMediaFilter);
+      }
+
+      // Filtrages spécifiques à la Watchlist
       if (currentTab === 'watchlist') {
-        if (currentFilter !== 'all') {
-          dataToRender = dataToRender.filter(item => item.node.my_list_status && item.node.my_list_status.status === currentFilter);
+        if (currentStatusFilter !== 'all') {
+          dataToRender = dataToRender.filter(item => item.node.my_list_status && item.node.my_list_status.status === currentStatusFilter);
         }
         if (currentSearch) {
           dataToRender = dataToRender.filter(item => item.node.title.toLowerCase().includes(currentSearch));
@@ -300,7 +338,7 @@
       }
 
       if (dataToRender.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-sm text-center py-10">Aucun résultat.</p>`;
+        container.innerHTML = `<p class="text-slate-400 text-sm text-center py-10">Aucun résultat correspondant aux filtres.</p>`;
         return;
       }
 
@@ -437,12 +475,18 @@
 
       try {
         await fetchMAL(`anime/${id}/my_list_status`, 'PATCH', body);
+        
+        // Mise à jour de l'état local complet pour affichage instantané
         const item = itemsData.find(i => i.node.id === id);
         if (item) {
             item.node.my_list_status = item.node.my_list_status || {};
             item.node.my_list_status.status = status;
             item.node.my_list_status.score = score;
+            item.node.my_list_status.num_watched_episodes = num_watched_episodes;
+            if(start_date) item.node.my_list_status.start_date = start_date;
+            if(finish_date) item.node.my_list_status.finish_date = finish_date;
         }
+        
         closeModal();
         renderGrid();
       } catch (e) {
