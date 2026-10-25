@@ -21,13 +21,19 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen pb-20">
   
-  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-lg">
-    <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold"><i class="fa-solid fa-play"></i></div>
-      <span class="text-lg font-bold">AniPulse</span>
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 p-3 shadow-lg flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold"><i class="fa-solid fa-play"></i></div>
+        <span class="text-lg font-bold">AniPulse</span>
+      </div>
+      <div id="user-area">
+        <button onclick="loginMAL()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-md">Connexion</button>
+      </div>
     </div>
-    <div id="user-area">
-      <button onclick="loginMAL()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-md">Connexion</button>
+    <div class="relative w-full">
+      <input type="text" id="search-input" placeholder="Rechercher un anime..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 outline-none" onkeyup="if(event.key==='Enter') searchAnime()">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
     </div>
   </header>
 
@@ -149,23 +155,59 @@
       return labels[status] || status;
     }
 
+    async function searchAnime() {
+      const q = document.getElementById('search-input').value.trim();
+      if(!q) return;
+      document.getElementById('main-content').innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div><p class="text-slate-400 text-xs mt-3">Recherche en cours...</p></div>`;
+      document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>Résultats: ${q}`;
+      document.getElementById('watchlist-filters').classList.add('hidden');
+      
+      try {
+        const json = await fetchMAL(`anime?q=${encodeURIComponent(q)}&limit=50&fields=id,title,main_picture,mean,media_type,my_list_status`);
+        itemsData = (json && Array.isArray(json.data)) ? json.data : [];
+        currentFilter = 'all';
+        renderGrid();
+      } catch (e) {
+        document.getElementById('main-content').innerHTML = `<p class="text-rose-400 text-center py-10">Recherche échouée.</p>`;
+      }
+    }
+
     async function loadData() {
       const container = document.getElementById('main-content');
       container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement en cours...</p></div>`;
       
       try {
-        if (currentTab === 'watchlist' && !localStorage.getItem('mal_access_token')) {
-          container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre liste</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
-          return;
-        }
+        if (currentTab === 'watchlist') {
+          if (!localStorage.getItem('mal_access_token')) {
+            container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre liste</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
+            return;
+          }
+          
+          let allItems = [];
+          let endpoint = 'users/@me/animelist?limit=1000&fields=id,title,main_picture,mean,media_type,my_list_status';
+          
+          while (endpoint && allItems.length < 4000) {
+            const json = await fetchMAL(endpoint);
+            if (json && json.data) {
+              allItems = allItems.concat(json.data);
+              if (json.paging && json.paging.next) {
+                endpoint = json.paging.next.split('/v2/')[1];
+              } else {
+                endpoint = null;
+              }
+            } else {
+              endpoint = null;
+            }
+          }
+          itemsData = allItems;
+          renderGrid();
 
-        let endpoint = (currentTab === 'watchlist') 
-          ? 'users/@me/animelist?limit=300&fields=id,title,main_picture,mean,media_type,my_list_status' 
-          : `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=40&fields=id,title,main_picture,mean,media_type,my_list_status`;
-        
-        const json = await fetchMAL(endpoint);
-        itemsData = (json && Array.isArray(json.data)) ? json.data : [];
-        renderGrid();
+        } else {
+          const endpoint = `anime/ranking?ranking_type=${currentTab === 'airing' ? 'airing' : 'all'}&limit=40&fields=id,title,main_picture,mean,media_type,my_list_status`;
+          const json = await fetchMAL(endpoint);
+          itemsData = (json && Array.isArray(json.data)) ? json.data : [];
+          renderGrid();
+        }
 
       } catch (e) {
         container.innerHTML = `<div class="bg-rose-900/20 border border-rose-800 p-4 rounded-xl text-center"><p class="text-rose-400 text-xs">${e.message}</p></div>`;
@@ -198,7 +240,7 @@
         html += `
           <div onclick="openModal(${item.node.id})" class="bg-slate-900 border border-slate-800/80 rounded-xl sm:rounded-2xl overflow-hidden relative cursor-pointer hover:border-indigo-500/50 transition">
             <div class="relative aspect-[3/4] bg-slate-950">
-              <img src="${img}" class="w-full h-full object-cover" />
+              <img src="${img}" class="w-full h-full object-cover" loading="lazy" />
               ${statusHtml}
               <div class="absolute top-1.5 right-1.5 bg-slate-950/85 backdrop-blur px-2 py-0.5 rounded-lg text-[10px] font-bold text-amber-400 border border-slate-800">★ ${score}</div>
             </div>
