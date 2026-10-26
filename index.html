@@ -499,14 +499,10 @@
 
     function extractAnimeTitle(rawTitle) {
       let clean = rawTitle;
-      
-      // FIX : Les vrais titres d'animes sur YouTube sont presque toujours dans ces guillemets 『 』 ou 「 」
       const match = rawTitle.match(/[『「](.+?)[』」]/);
-      
       if (match) {
         clean = match[1];
       } else {
-        // S'il n'y a pas ces guillemets, on supprime au moins les tags parasites comme 【#よう実】 ou 【PV】
         clean = clean.replace(/【.*?】/g, '').replace(/\[.*?\]/g, '');
       }
       
@@ -514,7 +510,7 @@
                    .replace(/アニメ/gi, '')
                    .replace(/第\d+期/gi, '')
                    .replace(/(Season|Part)\s*\d+/gi, '')
-                   .replace(/[\(（].*?[\)）]/g, '') // Supprime les infos de doublage (CV: XXX)
+                   .replace(/[\(（].*?[\)）]/g, '') 
                    .replace(/(PV|Trailer|Teaser|予告|特報|第\d+弾|ノンクレジット|OP|ED|映像|解禁|決定|本PV).*/i, '');
                    
       return clean.trim().substring(0, 50);
@@ -535,7 +531,6 @@
             btn.classList.remove('text-slate-400', 'bg-slate-900', 'border-slate-700');
             btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500', 'hover:bg-indigo-500');
           } else {
-            // Si introuvable, on laisse l'utilisateur l'utiliser comme un bouton de recherche libre
             btn.innerHTML = `<i class="fa-solid fa-ghost shrink-0"></i> <span class="truncate">Recherche: ${query.substring(0,15)}...</span>`;
             btn.onclick = (e) => { e.stopPropagation(); executeGlobalSearch(query); setTab('top'); document.getElementById('search-input').value = query; };
           }
@@ -559,10 +554,9 @@
         return;
       }
 
-      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs text-center px-4">Analyse de centaines de vidéos...<br><span class="text-[10px] text-slate-500">(Ça peut prendre 2 secondes)</span></p></div>`;
+      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs text-center px-4">Analyse de plus de 1300 vidéos...<br><span class="text-[10px] text-slate-500">(Ça peut prendre quelques secondes)</span></p></div>`;
       
       try {
-        // La Blinde de chaînes : 13 gros éditeurs japonais d'animation
         const officialPlaylists = [
           'UUY5fcqgSrQItPAX_Z5Frmwg', // KADOKAWAanime
           'UU5HRbgNTw7hQhP9JmU0E6XQ', // TOHO animation
@@ -582,13 +576,23 @@
         let allTrailers = [];
         let lastError = null;
 
-        // Requête simultanée sur les 13 chaînes (50 vidéos max chacune = 650 vidéos analysées)
+        // Requête sur 2 pages par chaîne (100 vidéos récentes / chaîne = 1300 vidéos totales)
         await Promise.all(officialPlaylists.map(async (playlistId) => {
           try {
+            // Page 1
             const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&key=${YOUTUBE_API_KEY}`);
             if (res.ok) {
               const data = await res.json();
-              if (data.items) allTrailers = allTrailers.concat(data.items);
+              if (data.items) allTrailers.push(...data.items);
+              
+              // Page 2
+              if (data.nextPageToken) {
+                const res2 = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&pageToken=${data.nextPageToken}&key=${YOUTUBE_API_KEY}`);
+                if (res2.ok) {
+                   const data2 = await res2.json();
+                   if (data2.items) allTrailers.push(...data2.items);
+                }
+              }
             } else {
               lastError = res.status;
             }
@@ -603,12 +607,18 @@
 
         const filteredTrailers = allTrailers.filter(item => {
           const title = item.snippet.title.toLowerCase();
+          
+          // DOIT contenir
           const isTrailer = title.includes('pv') || title.includes('trailer') || title.includes('予告') || title.includes('トレイラー');
-          const isForbidden = title.match(/short|#shorts|cm|グッズ|生放送|ラジオ|ノンクレジット|op|ed|blu-ray|dvd|発売|宣伝|ダイジェスト|オーディオドラマ|ボイスコミック|第\d+話/i);
+          
+          // NE DOIT PAS contenir
+          // J'utilise \b pour encadrer op/ed/cm et ne bloquer QUE ces mots exacts, et pas l'intérieur d'un mot (ex: "comédie")
+          const isForbidden = title.match(/shorts?|#shorts|グッズ|生放送|ラジオ|ノンクレジット|blu-ray|dvd|発売|宣伝|ダイジェスト|ボイスコミック|第\d+話|振り返り|番宣/) || title.match(/\b(cm|op|ed)\b/i);
+          
           return isTrailer && !isForbidden;
         });
 
-        // Suppression des doublons éventuels
+        // Suppression des doublons
         const uniqueTrailersMap = new Map();
         filteredTrailers.forEach(item => {
           uniqueTrailersMap.set(item.snippet.resourceId.videoId, item);
@@ -621,7 +631,7 @@
         displayedTrailersCount = 0;
 
         if (globalTrailers.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer récent trouvé.</p>`;
+          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer récent trouvé parmi les ${allTrailers.length} vidéos analysées.</p>`;
           return;
         }
 
