@@ -54,7 +54,6 @@
     <div id="global-filters" class="flex flex-col gap-2 mb-4 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
       
       <div id="watchlist-status-filters" class="hidden gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap border-b border-slate-800 mb-1">
-        <!-- Généré en JS -->
       </div>
 
       <div id="media-filters" class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap items-center">
@@ -96,20 +95,23 @@
   </main>
 
   <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-2 px-1 z-40">
-    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 px-2 text-indigo-400">
-      <i class="fa-solid fa-fire text-lg"></i><span class="text-[10px] font-medium">Top</span>
+    <button onclick="setTab('top')" id="nav-top" class="flex flex-col items-center gap-1 py-1 px-1.5 text-indigo-400">
+      <i class="fa-solid fa-fire text-base"></i><span class="text-[9px] font-medium">Top</span>
     </button>
-    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
-      <i class="fa-solid fa-bolt text-lg"></i><span id="nav-airing-text" class="text-[10px] font-medium">Saison</span>
+    <button onclick="setTab('airing')" id="nav-airing" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
+      <i class="fa-solid fa-bolt text-base"></i><span id="nav-airing-text" class="text-[9px] font-medium">Saison</span>
     </button>
-    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
-      <i class="fa-solid fa-bookmark text-lg"></i><span class="text-[10px] font-medium">Liste</span>
+    <button onclick="setTab('watchlist')" id="nav-watchlist" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
+      <i class="fa-solid fa-bookmark text-base"></i><span class="text-[9px] font-medium">Liste</span>
     </button>
-    <button onclick="setTab('random')" id="nav-random" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
-      <i class="fa-solid fa-dice text-lg"></i><span class="text-[10px] font-medium">Aléatoire</span>
+    <button onclick="setTab('trailers')" id="nav-trailers" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
+      <i class="fa-solid fa-video text-base"></i><span class="text-[9px] font-medium">Trailers</span>
     </button>
-    <button onclick="setTab('profile')" id="nav-profile" class="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
-      <i class="fa-solid fa-user text-lg"></i><span class="text-[10px] font-medium">Profil</span>
+    <button onclick="setTab('random')" id="nav-random" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
+      <i class="fa-solid fa-dice text-base"></i><span class="text-[9px] font-medium">Aléatoire</span>
+    </button>
+    <button onclick="setTab('profile')" id="nav-profile" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
+      <i class="fa-solid fa-user text-base"></i><span class="text-[9px] font-medium">Profil</span>
     </button>
   </nav>
 
@@ -123,7 +125,7 @@
   <script>
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
-    let appMode = 'anime'; // 'anime' ou 'manga'
+    let appMode = 'anime';
     let currentTab = 'top';
     let currentStatusFilter = 'all';
     let currentMediaFilter = 'all';
@@ -213,12 +215,19 @@
 
     function setTab(tab) {
       currentTab = tab;
-      ['top', 'airing', 'watchlist', 'random', 'profile'].forEach(t => {
-        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-2 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-2 text-slate-400';
+      ['top', 'airing', 'watchlist', 'trailers', 'random', 'profile'].forEach(t => {
+        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-1.5 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400';
       });
 
       const labelType = appMode === 'anime' ? 'Animes' : 'Mangas';
-      const titles = { top: `Top ${labelType}`, airing: appMode === 'anime' ? 'Saison Actuelle' : 'Top Publiés', watchlist: 'Ma Liste', random: `${appMode === 'anime' ? 'Anime' : 'Manga'} Aléatoire`, profile: 'Mon Profil' };
+      const titles = { 
+        top: `Top ${labelType}`, 
+        airing: appMode === 'anime' ? 'Saison Actuelle' : 'Top Publiés', 
+        watchlist: 'Ma Liste', 
+        trailers: 'Derniers Trailers & PV',
+        random: `${appMode === 'anime' ? 'Anime' : 'Manga'} Aléatoire`, 
+        profile: 'Mon Profil' 
+      };
       document.getElementById('page-title').innerHTML = `<span class="text-indigo-500 mr-2">●</span>${titles[tab]}`;
       
       const globalFilters = document.getElementById('global-filters');
@@ -227,7 +236,7 @@
       const searchContainer = document.getElementById('search-container');
       const searchInput = document.getElementById('search-input');
       
-      if (tab === 'profile' || tab === 'random') {
+      if (tab === 'profile' || tab === 'random' || tab === 'trailers') {
         globalFilters.classList.add('hidden');
         searchContainer.classList.add('hidden');
       } else {
@@ -340,6 +349,11 @@
       container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement...</p></div>`;
       
       try {
+        if (currentTab === 'trailers') {
+          loadTrailers();
+          return;
+        }
+
         if (currentTab === 'profile') {
           if (!localStorage.getItem('mal_access_token')) {
             container.innerHTML = `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center mt-10"><p class="text-slate-300 text-sm mb-4">Connectez-vous pour voir votre profil</p><button onclick="loginMAL()" class="bg-indigo-600 px-6 py-2 rounded-xl text-white font-bold">Connexion MAL</button></div>`;
@@ -413,7 +427,7 @@
         } else {
           let rankType = 'all';
           if (currentTab === 'airing') {
-            rankType = appMode === 'anime' ? 'airing' : 'bypopularity'; // Manga n'a pas 'airing', on utilise 'bypopularity'
+            rankType = appMode === 'anime' ? 'airing' : 'bypopularity';
           }
           const endpoint = `${appMode}/ranking?ranking_type=${rankType}&limit=100&fields=${fields}`;
           const json = await fetchMAL(endpoint);
@@ -423,6 +437,65 @@
       } catch (e) {
         container.innerHTML = `<div class="bg-rose-900/20 border border-rose-800 p-4 rounded-xl text-center"><p class="text-rose-400 text-xs">${e.message}</p></div>`;
       }
+    }
+
+    async function loadTrailers() {
+      const container = document.getElementById('main-content');
+      try {
+        const res = await fetch('https://api.jikan.moe/v4/watch/promotions');
+        const json = await res.json();
+        const trailers = json.data || [];
+
+        if (trailers.length === 0) {
+          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer disponible.</p>`;
+          return;
+        }
+
+        let html = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
+        trailers.slice(0, 30).forEach(item => {
+          const ytId = item.trailer?.youtube_id;
+          const thumb = item.trailer?.images?.maximum_image_url || item.entry?.images?.jpg?.large_image_url;
+          const title = item.entry?.title || 'Anime';
+          const trailerTitle = item.title || 'PV / Trailer';
+
+          if (ytId) {
+            html += `
+              <div onclick="openVideoModal('${ytId}', '${title.replace(/'/g, "\\'")}', ${item.entry?.mal_id})" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition group">
+                <div class="relative aspect-video bg-slate-950">
+                  <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
+                  <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
+                  </div>
+                  <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-indigo-400 border border-slate-800">PV Offi</div>
+                </div>
+                <div class="p-3">
+                  <h3 class="font-bold text-slate-100 text-xs line-clamp-1">${title}</h3>
+                  <p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${trailerTitle}</p>
+                </div>
+              </div>
+            `;
+          }
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+      } catch(e) {
+        container.innerHTML = `<p class="text-rose-400 text-center py-10">Impossible de charger les trailers PV.</p>`;
+      }
+    }
+
+    function openVideoModal(ytId, title, malId) {
+      const modalBody = document.getElementById('modal-body');
+      document.getElementById('modal').classList.remove('hidden');
+
+      modalBody.innerHTML = `
+        <div class="flex flex-col gap-3 mt-2">
+          <h2 class="text-sm sm:text-base font-bold text-slate-100 pr-6">${title}</h2>
+          <div class="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
+            <iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1" class="w-full h-full" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+          </div>
+          ${malId ? `<button onclick="closeModal(); openModal(${malId});" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-solid fa-circle-info"></i> Voir la fiche détaillée</button>` : ''}
+        </div>
+      `;
     }
 
     function renderRandom() {
