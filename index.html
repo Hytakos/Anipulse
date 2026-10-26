@@ -240,7 +240,7 @@
         top: `Top ${labelType}`, 
         airing: appMode === 'anime' ? 'Saison Actuelle' : 'Top Publiés', 
         watchlist: 'Ma Liste', 
-        trailers: 'Derniers Trailers (YouTube)',
+        trailers: 'Derniers PV (Officiel)',
         random: `${appMode === 'anime' ? 'Anime' : 'Manga'} Aléatoire`, 
         profile: 'Mon Profil' 
       };
@@ -488,28 +488,51 @@
         return;
       }
 
-      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Recherche sur YouTube (Tri par date)...</p></div>`;
+      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Récupération des PV officiels...</p></div>`;
       
       try {
-        const query = encodeURIComponent('anime PV OR trailer "KADOKAWA" OR "Aniplex" OR "TOHO animation"');
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&order=date&type=video&maxResults=18&relevanceLanguage=ja&key=${YOUTUBE_API_KEY}`);
-        
-        if (!res.ok) {
-          throw new Error(`Erreur API YouTube (${res.status})`);
-        }
+        // ID des playlists "Uploads" des chaînes officielles (KADOKAWA, TOHO, Aniplex, Pony Canyon)
+        const officialPlaylists = [
+          'UUX5v9UeF1CjndQG0L5yDkpg', // KADOKAWAanime
+          'UU5HRbgNTw7hQhP9JmU0E6XQ', // TOHO animation
+          'UU14QT5j2nQI8lKPCGzsJTpQ', // Aniplex
+          'UU84PsdKDa-3_D9QJ55_5k5g'  // PONY CANYON
+        ];
 
-        const json = await res.json();
-        const trailers = json.items || [];
+        let allTrailers = [];
 
-        if (trailers.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer récent trouvé.</p>`;
+        // Récupération simultanée des 10 dernières vidéos de chaque studio (coûte seulement 4 points d'API au lieu de 100)
+        await Promise.all(officialPlaylists.map(async (playlistId) => {
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=10&key=${YOUTUBE_API_KEY}`);
+          if (res.ok) {
+            const data = await res.json();
+            allTrailers = allTrailers.concat(data.items);
+          }
+        }));
+
+        // Filtrage strict : uniquement les PV/Trailers, et on exclut les Shorts
+        const filteredTrailers = allTrailers.filter(item => {
+          const title = item.snippet.title.toLowerCase();
+          const isPV = title.includes('pv') || title.includes('trailer') || title.includes('予告') || title.includes('特報');
+          const isShort = title.includes('#shorts') || title.includes('short');
+          return isPV && !isShort;
+        });
+
+        // Tri par date de sortie la plus récente
+        filteredTrailers.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
+
+        // On ne garde que les 18 plus récents
+        const finalTrailers = filteredTrailers.slice(0, 18);
+
+        if (finalTrailers.length === 0) {
+          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun PV récent trouvé.</p>`;
           return;
         }
 
         let html = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
-        trailers.forEach(item => {
-          const ytId = item.id.videoId;
-          const thumb = item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url;
+        finalTrailers.forEach(item => {
+          const ytId = item.snippet.resourceId.videoId;
+          const thumb = item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url;
           const title = item.snippet.title;
           const channel = item.snippet.channelTitle;
           const safeTitle = title.replace(/['"]/g, "");
@@ -521,7 +544,7 @@
                 <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
                   <div class="w-12 h-12 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
                 </div>
-                <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-rose-400 border border-slate-800">Nouveau</div>
+                <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-rose-400 border border-slate-800">PV Officiel</div>
               </div>
               <div class="p-3 flex-1 flex flex-col justify-between">
                 <h3 class="font-bold text-slate-100 text-xs line-clamp-2 mb-1">${title}</h3>
@@ -533,7 +556,7 @@
         html += `</div>`;
         container.innerHTML = html;
       } catch(e) {
-        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Connexion à YouTube échouée.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Vérifie ta clé API, que l'API "YouTube Data v3" est bien activée et tes restrictions sur Google Cloud.</p></div>`;
+        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Erreur de récupération.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Vérifie ta clé API, que l'API "YouTube Data v3" est bien activée et tes restrictions sur Google Cloud.</p></div>`;
       }
     }
 
