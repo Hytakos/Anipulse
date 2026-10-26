@@ -128,7 +128,7 @@
     
     // ASTUCE ANTI-GITHUB : On coupe la clé API en deux pour tromper le scanner de sécurité.
     const KEY_PART_1 = 'AIzaSy'; 
-    const KEY_PART_2 = 'AgGZr9Y0yM3MgQ1LK2j7Df5YGq6kZP40U'; // <-- TA CLÉ ICI
+    const KEY_PART_2 = 'REMPLACE_CECI_PAR_LE_RESTE_DE_TA_CLE'; 
     const YOUTUBE_API_KEY = KEY_PART_1 + KEY_PART_2;
     
     let appMode = 'anime';
@@ -140,6 +140,10 @@
     let currentSearch = '';
     let itemsData = [];
     let userProfile = null;
+    
+    // Variables pour la pagination locale des trailers
+    let globalTrailers = [];
+    let displayedTrailersCount = 0;
 
     function loginMAL() {
       const verifier = Array.from(crypto.getRandomValues(new Uint8Array(128))).map(x => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[x % 66]).join('');
@@ -481,11 +485,9 @@
 
     // FONCTION D'EXTRACTION INTELLIGENTE DU TITRE POUR MAL
     function extractAnimeTitle(rawTitle) {
-      // Les japonais encadrent presque toujours le titre exact de l'anime par 『 』 ou 【 】
       const match = rawTitle.match(/[『「【](.+?)[』」】]/);
       if (match) return match[1];
       
-      // Si pas de guillemets, on nettoie tous les mots parasites habituels des trailers
       let clean = rawTitle.replace(/TVアニメ/gi, '')
                           .replace(/(PV|Trailer|Teaser|予告|特報|第\d+弾|ノンクレジット|OP|ED|映像|解禁|決定).*/i, '');
       return clean.trim().substring(0, 50);
@@ -506,7 +508,7 @@
       try {
         const json = await fetchMAL(`anime?q=${encodeURIComponent(query)}&limit=1&fields=id`);
         if (json && json.data && json.data.length > 0) {
-          openModal(json.data[0].node.id); // Si on trouve l'anime, on l'ouvre
+          openModal(json.data[0].node.id); 
         } else {
           modalBody.innerHTML = `
             <div class="flex flex-col items-center py-10 px-4">
@@ -546,9 +548,10 @@
         let allTrailers = [];
         let lastError = null;
 
+        // On demande 50 vidéos par playlist pour avoir un bon stock local (coûte toujours 1 point par playlist)
         await Promise.all(officialPlaylists.map(async (playlistId) => {
           try {
-            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=10&key=${YOUTUBE_API_KEY}`);
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&key=${YOUTUBE_API_KEY}`);
             if (res.ok) {
               const data = await res.json();
               if (data.items) allTrailers = allTrailers.concat(data.items);
@@ -571,54 +574,85 @@
           return isPV && !isShort;
         });
 
+        // On trie TOUT le stock récupéré du plus récent au plus ancien
         filteredTrailers.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
 
-        const finalTrailers = filteredTrailers.slice(0, 18);
+        // On stocke le résultat global et on réinitialise le compteur
+        globalTrailers = filteredTrailers;
+        displayedTrailersCount = 0;
 
-        if (finalTrailers.length === 0) {
+        if (globalTrailers.length === 0) {
           container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun PV récent trouvé.</p>`;
           return;
         }
 
-        let html = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
-        finalTrailers.forEach(item => {
-          const ytId = item.snippet.resourceId.videoId;
-          const thumb = item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url;
-          const rawTitle = item.snippet.title;
-          const channel = item.snippet.channelTitle;
-          const safeTitle = rawTitle.replace(/['"]/g, "");
-          
-          // On nettoie le titre pour MAL et on échappe les quotes pour la fonction JS
-          const cleanTitle = extractAnimeTitle(rawTitle);
-          const safeCleanTitle = cleanTitle.replace(/['"\\]/g, " ");
+        // On crée le conteneur de la grille et le bouton Charger plus
+        container.innerHTML = `
+          <div id="trailers-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+          <div id="load-more-container" class="flex justify-center mt-6 mb-4 hidden">
+            <button onclick="renderMoreTrailers()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-6 rounded-xl border border-slate-700 transition shadow-lg flex items-center gap-2">
+              <i class="fa-solid fa-plus"></i> Charger plus
+            </button>
+          </div>
+        `;
 
-          html += `
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden group shadow-md flex flex-col">
-              <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="relative aspect-video bg-slate-950 cursor-pointer">
-                <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
-                <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
-                  <div class="w-12 h-12 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
-                </div>
-                <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-rose-400 border border-slate-800">PV Officiel</div>
-              </div>
-              <div class="p-3 flex-1 flex flex-col justify-between">
-                <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="cursor-pointer">
-                  <h3 class="font-bold text-slate-100 text-xs line-clamp-2 mb-1 hover:text-rose-400 transition">${rawTitle}</h3>
-                  <p class="text-[10px] text-slate-400"><i class="fa-brands fa-youtube text-rose-500 mr-1"></i>${channel}</p>
-                </div>
-                
-                <button onclick="searchAndOpenAnime('${safeCleanTitle}')" class="mt-3 w-full bg-slate-950 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-slate-800 hover:border-indigo-500 text-[10px] font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
-                  <i class="fa-solid fa-book-open"></i> Fiche de l'anime (MAL)
-                </button>
+        // On lance le premier affichage (20 vidéos)
+        renderMoreTrailers();
 
-              </div>
-            </div>
-          `;
-        });
-        html += `</div>`;
-        container.innerHTML = html;
       } catch(e) {
         container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Impossible de contacter YouTube.</p><p class="text-xs text-slate-400 px-6 max-w-sm">${e.message}</p></div>`;
+      }
+    }
+
+    // FONCTION POUR AFFICHER LES TRAILERS PAR LOTS DE 20
+    function renderMoreTrailers() {
+      const grid = document.getElementById('trailers-grid');
+      const nextTrailers = globalTrailers.slice(displayedTrailersCount, displayedTrailersCount + 20);
+      
+      let html = '';
+      nextTrailers.forEach(item => {
+        const ytId = item.snippet.resourceId.videoId;
+        const thumb = item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url;
+        const rawTitle = item.snippet.title;
+        const channel = item.snippet.channelTitle;
+        const safeTitle = rawTitle.replace(/['"]/g, "");
+        
+        const cleanTitle = extractAnimeTitle(rawTitle);
+        const safeCleanTitle = cleanTitle.replace(/['"\\]/g, " ");
+
+        html += `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden group shadow-md flex flex-col">
+            <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="relative aspect-video bg-slate-950 cursor-pointer">
+              <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
+              <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
+                <div class="w-12 h-12 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
+              </div>
+              <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-rose-400 border border-slate-800">PV Officiel</div>
+            </div>
+            <div class="p-3 flex-1 flex flex-col justify-between">
+              <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="cursor-pointer">
+                <h3 class="font-bold text-slate-100 text-xs line-clamp-2 mb-1 hover:text-rose-400 transition">${rawTitle}</h3>
+                <p class="text-[10px] text-slate-400"><i class="fa-brands fa-youtube text-rose-500 mr-1"></i>${channel}</p>
+              </div>
+              
+              <button onclick="searchAndOpenAnime('${safeCleanTitle}')" class="mt-3 w-full bg-slate-950 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-slate-800 hover:border-indigo-500 text-[10px] font-bold py-2 px-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm truncate">
+                <i class="fa-solid fa-book-open shrink-0"></i> <span class="truncate">${cleanTitle}</span>
+              </button>
+
+            </div>
+          </div>
+        `;
+      });
+      
+      grid.insertAdjacentHTML('beforeend', html);
+      displayedTrailersCount += nextTrailers.length;
+
+      // Cacher ou afficher le bouton "Charger plus"
+      const loadMoreBtn = document.getElementById('load-more-container');
+      if (displayedTrailersCount >= globalTrailers.length) {
+        loadMoreBtn.classList.add('hidden');
+      } else {
+        loadMoreBtn.classList.remove('hidden');
       }
     }
 
