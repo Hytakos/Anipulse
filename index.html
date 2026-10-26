@@ -127,9 +127,8 @@
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
     
     // ASTUCE ANTI-GITHUB : On coupe la clé API en deux pour tromper le scanner de sécurité.
-    // Exemple: Si ta clé est "AIzaSyABC123DEF456", tu mets "AIzaSy" ici et le reste en dessous.
     const KEY_PART_1 = 'AIzaSy'; 
-    const KEY_PART_2 = 'AgGZr9Y0yM3MgQ1LK2j7Df5YGq6kZP40U'; 
+    const KEY_PART_2 = 'REMPLACE_CECI_PAR_LE_RESTE_DE_TA_CLE'; 
     const YOUTUBE_API_KEY = KEY_PART_1 + KEY_PART_2;
     
     let appMode = 'anime';
@@ -497,25 +496,33 @@
       
       try {
         const officialPlaylists = [
-          'UUX5v9UeF1CjndQG0L5yDkpg', // KADOKAWAanime
+          'UUY5fcqgSrQItPAX_Z5Frmwg', // KADOKAWAanime (ID Corrigé)
           'UU5HRbgNTw7hQhP9JmU0E6XQ', // TOHO animation
           'UU14QT5j2nQI8lKPCGzsJTpQ', // Aniplex
-          'UU84PsdKDa-3_D9QJ55_5k5g'  // PONY CANYON
+          'UUPeom_pbif6Pj-iM72R_XKw'  // PONY CANYON (ID Corrigé)
         ];
 
         let allTrailers = [];
+        let lastError = null;
 
+        // Traitement individuel des requêtes pour ne pas planter si une chaîne disparaît
         await Promise.all(officialPlaylists.map(async (playlistId) => {
-          const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=10&key=${YOUTUBE_API_KEY}`);
-          
-          if (!res.ok) {
-            console.error(`L'API a répondu avec l'erreur: ${res.status}`);
-            throw new Error(`Accès refusé (Erreur ${res.status}) - La clé API a probablement été bloquée.`);
+          try {
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=10&key=${YOUTUBE_API_KEY}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.items) allTrailers = allTrailers.concat(data.items);
+            } else {
+              lastError = res.status;
+            }
+          } catch(err) {
+            lastError = err.message;
           }
-          
-          const data = await res.json();
-          allTrailers = allTrailers.concat(data.items);
         }));
+
+        if (allTrailers.length === 0) {
+          throw new Error(`Accès refusé ou impossible (Erreur ${lastError || 'inconnue'}). Vérifie les restrictions de ta clé API.`);
+        }
 
         const filteredTrailers = allTrailers.filter(item => {
           const title = item.snippet.title.toLowerCase();
