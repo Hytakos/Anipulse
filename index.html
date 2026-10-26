@@ -169,6 +169,17 @@
       document.getElementById('nav-airing-text').innerText = mode === 'anime' ? 'Saison' : 'Publié';
       document.getElementById('search-input').placeholder = `Rechercher un ${mode}...`;
 
+      const trailersBtn = document.getElementById('nav-trailers');
+      if (mode === 'anime') {
+        trailersBtn.style.display = 'flex';
+      } else {
+        trailersBtn.style.display = 'none';
+        if (currentTab === 'trailers') {
+          setTab('top');
+          return;
+        }
+      }
+
       renderFiltersUI();
       setTab('top');
     }
@@ -216,7 +227,10 @@
     function setTab(tab) {
       currentTab = tab;
       ['top', 'airing', 'watchlist', 'trailers', 'random', 'profile'].forEach(t => {
-        document.getElementById(`nav-${t}`).className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-1.5 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400';
+        const btn = document.getElementById(`nav-${t}`);
+        if(btn) {
+            btn.className = (t === tab) ? 'flex flex-col items-center gap-1 py-1 px-1.5 text-indigo-400' : 'flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400';
+        }
       });
 
       const labelType = appMode === 'anime' ? 'Animes' : 'Mangas';
@@ -441,8 +455,15 @@
 
     async function loadTrailers() {
       const container = document.getElementById('main-content');
+      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement des trailers...</p></div>`;
+      
       try {
         const res = await fetch('https://api.jikan.moe/v4/watch/promotions');
+        
+        if (!res.ok) {
+          throw new Error(`Erreur API (${res.status})`);
+        }
+
         const json = await res.json();
         const trailers = json.data || [];
 
@@ -457,10 +478,11 @@
           const thumb = item.trailer?.images?.maximum_image_url || item.entry?.images?.jpg?.large_image_url;
           const title = item.entry?.title || 'Anime';
           const trailerTitle = item.title || 'PV / Trailer';
+          const safeTitle = title.replace(/['"]/g, "");
 
           if (ytId) {
             html += `
-              <div onclick="openVideoModal('${ytId}', '${title.replace(/'/g, "\\'")}', ${item.entry?.mal_id})" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition group">
+              <div onclick="openVideoModal('${ytId}', '${safeTitle}', ${item.entry?.mal_id})" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition group shadow-md">
                 <div class="relative aspect-video bg-slate-950">
                   <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
                   <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
@@ -479,7 +501,7 @@
         html += `</div>`;
         container.innerHTML = html;
       } catch(e) {
-        container.innerHTML = `<p class="text-rose-400 text-center py-10">Impossible de charger les trailers PV.</p>`;
+        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">L'API publique est surchargée.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Jikan limite les requêtes pour protéger ses serveurs. Veuillez patienter quelques instants et réessayer.</p><button onclick="loadTrailers()" class="mt-6 bg-indigo-600 text-white text-xs font-bold py-2 px-6 rounded-xl hover:bg-indigo-500 transition shadow">Réessayer</button></div>`;
       }
     }
 
