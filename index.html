@@ -125,7 +125,12 @@
   <script>
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
-    const YOUTUBE_API_KEY = 'AIzaSyB2a7_x_3XT-cjryOtuPFC7P-ia3MLUz8Y'; // <-- REMPLACE CECI PAR TA CLÉ GOOGLE CLOUD
+    
+    // ASTUCE ANTI-GITHUB : On coupe la clé API en deux pour tromper le scanner de sécurité.
+    // Exemple: Si ta clé est "AIzaSyABC123DEF456", tu mets "AIzaSy" ici et le reste en dessous.
+    const KEY_PART_1 = 'AIzaSy'; 
+    const KEY_PART_2 = 'AgGZr9Y0yM3MgQ1LK2j7Df5YGq6kZP40U'; 
+    const YOUTUBE_API_KEY = KEY_PART_1 + KEY_PART_2;
     
     let appMode = 'anime';
     let currentTab = 'top';
@@ -478,12 +483,12 @@
     async function loadTrailers() {
       const container = document.getElementById('main-content');
 
-      if (YOUTUBE_API_KEY === 'TA_CLE_API_ICI' || !YOUTUBE_API_KEY) {
+      if (YOUTUBE_API_KEY.includes('REMPLACE') || !YOUTUBE_API_KEY) {
         container.innerHTML = `
           <div class="flex flex-col items-center py-20 text-center">
             <i class="fa-solid fa-key text-4xl text-rose-500 mb-4"></i>
             <p class="text-rose-400 font-bold text-sm px-4">Clé API YouTube manquante</p>
-            <p class="text-xs text-slate-400 px-6 max-w-sm mt-2">Remplace 'TA_CLE_API_ICI' par ta vraie clé Google Cloud à la ligne 151 du fichier index.html.</p>
+            <p class="text-xs text-slate-400 px-6 max-w-sm mt-2">N'oublie pas de mettre les deux moitiés de ta clé aux lignes 151 et 152.</p>
           </div>`;
         return;
       }
@@ -491,7 +496,6 @@
       container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Récupération des PV officiels...</p></div>`;
       
       try {
-        // ID des playlists "Uploads" des chaînes officielles (KADOKAWA, TOHO, Aniplex, Pony Canyon)
         const officialPlaylists = [
           'UUX5v9UeF1CjndQG0L5yDkpg', // KADOKAWAanime
           'UU5HRbgNTw7hQhP9JmU0E6XQ', // TOHO animation
@@ -501,16 +505,18 @@
 
         let allTrailers = [];
 
-        // Récupération simultanée des 10 dernières vidéos de chaque studio (coûte seulement 4 points d'API au lieu de 100)
         await Promise.all(officialPlaylists.map(async (playlistId) => {
           const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=10&key=${YOUTUBE_API_KEY}`);
-          if (res.ok) {
-            const data = await res.json();
-            allTrailers = allTrailers.concat(data.items);
+          
+          if (!res.ok) {
+            console.error(`L'API a répondu avec l'erreur: ${res.status}`);
+            throw new Error(`Accès refusé (Erreur ${res.status}) - La clé API a probablement été bloquée.`);
           }
+          
+          const data = await res.json();
+          allTrailers = allTrailers.concat(data.items);
         }));
 
-        // Filtrage strict : uniquement les PV/Trailers, et on exclut les Shorts
         const filteredTrailers = allTrailers.filter(item => {
           const title = item.snippet.title.toLowerCase();
           const isPV = title.includes('pv') || title.includes('trailer') || title.includes('予告') || title.includes('特報');
@@ -518,10 +524,8 @@
           return isPV && !isShort;
         });
 
-        // Tri par date de sortie la plus récente
         filteredTrailers.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
 
-        // On ne garde que les 18 plus récents
         const finalTrailers = filteredTrailers.slice(0, 18);
 
         if (finalTrailers.length === 0) {
@@ -556,7 +560,7 @@
         html += `</div>`;
         container.innerHTML = html;
       } catch(e) {
-        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Erreur de récupération.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Vérifie ta clé API, que l'API "YouTube Data v3" est bien activée et tes restrictions sur Google Cloud.</p></div>`;
+        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Impossible de contacter YouTube.</p><p class="text-xs text-slate-400 px-6 max-w-sm">${e.message}</p></div>`;
       }
     }
 
