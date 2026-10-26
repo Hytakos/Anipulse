@@ -128,7 +128,7 @@
     
     // ASTUCE ANTI-GITHUB : On coupe la clé API en deux pour tromper le scanner de sécurité.
     const KEY_PART_1 = 'AIzaSy'; 
-    const KEY_PART_2 = 'AgGZr9Y0yM3MgQ1LK2j7Df5YGq6kZP40U'; 
+    const KEY_PART_2 = 'AgGZr9Y0yM3MgQ1LK2j7Df5YGq6kZP40U'; // <-- TA CLÉ ICI
     const YOUTUBE_API_KEY = KEY_PART_1 + KEY_PART_2;
     
     let appMode = 'anime';
@@ -479,6 +479,47 @@
       }
     }
 
+    // FONCTION D'EXTRACTION INTELLIGENTE DU TITRE POUR MAL
+    function extractAnimeTitle(rawTitle) {
+      // Les japonais encadrent presque toujours le titre exact de l'anime par 『 』 ou 【 】
+      const match = rawTitle.match(/[『「【](.+?)[』」】]/);
+      if (match) return match[1];
+      
+      // Si pas de guillemets, on nettoie tous les mots parasites habituels des trailers
+      let clean = rawTitle.replace(/TVアニメ/gi, '')
+                          .replace(/(PV|Trailer|Teaser|予告|特報|第\d+弾|ノンクレジット|OP|ED|映像|解禁|決定).*/i, '');
+      return clean.trim().substring(0, 50);
+    }
+
+    // FONCTION POUR RECHERCHER ET OUVRIR DIRECTEMENT L'ANIME
+    async function searchAndOpenAnime(query) {
+      const modalBody = document.getElementById('modal-body');
+      document.getElementById('modal').classList.remove('hidden');
+      
+      modalBody.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+          <p class="text-slate-400 text-xs font-bold">Recherche de la fiche MAL...</p>
+          <p class="text-[9px] text-slate-500 mt-2 text-center px-4">Titre extrait : ${query}</p>
+        </div>`;
+
+      try {
+        const json = await fetchMAL(`anime?q=${encodeURIComponent(query)}&limit=1&fields=id`);
+        if (json && json.data && json.data.length > 0) {
+          openModal(json.data[0].node.id); // Si on trouve l'anime, on l'ouvre
+        } else {
+          modalBody.innerHTML = `
+            <div class="flex flex-col items-center py-10 px-4">
+              <i class="fa-solid fa-ghost text-4xl text-slate-600 mb-3"></i>
+              <p class="text-slate-300 text-sm font-bold text-center mb-2">Anime introuvable.</p>
+              <p class="text-xs text-slate-500 text-center">Titre recherché :<br><span class="text-slate-400 mt-1 block">${query}</span></p>
+            </div>`;
+        }
+      } catch (e) {
+        modalBody.innerHTML = `<div class="flex flex-col items-center py-10"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-3"></i><p class="text-rose-400 font-bold text-sm">Erreur de connexion à MAL.</p></div>`;
+      }
+    }
+
     async function loadTrailers() {
       const container = document.getElementById('main-content');
 
@@ -496,16 +537,15 @@
       
       try {
         const officialPlaylists = [
-          'UUY5fcqgSrQItPAX_Z5Frmwg', // KADOKAWAanime (ID Corrigé)
+          'UUY5fcqgSrQItPAX_Z5Frmwg', // KADOKAWAanime
           'UU5HRbgNTw7hQhP9JmU0E6XQ', // TOHO animation
           'UU14QT5j2nQI8lKPCGzsJTpQ', // Aniplex
-          'UUPeom_pbif6Pj-iM72R_XKw'  // PONY CANYON (ID Corrigé)
+          'UUPeom_pbif6Pj-iM72R_XKw'  // PONY CANYON
         ];
 
         let allTrailers = [];
         let lastError = null;
 
-        // Traitement individuel des requêtes pour ne pas planter si une chaîne disparaît
         await Promise.all(officialPlaylists.map(async (playlistId) => {
           try {
             const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=10&key=${YOUTUBE_API_KEY}`);
@@ -521,7 +561,7 @@
         }));
 
         if (allTrailers.length === 0) {
-          throw new Error(`Accès refusé ou impossible (Erreur ${lastError || 'inconnue'}). Vérifie les restrictions de ta clé API.`);
+          throw new Error(`Accès refusé (Erreur ${lastError || 'inconnue'}). Vérifie les restrictions de ta clé.`);
         }
 
         const filteredTrailers = allTrailers.filter(item => {
@@ -544,13 +584,17 @@
         finalTrailers.forEach(item => {
           const ytId = item.snippet.resourceId.videoId;
           const thumb = item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url;
-          const title = item.snippet.title;
+          const rawTitle = item.snippet.title;
           const channel = item.snippet.channelTitle;
-          const safeTitle = title.replace(/['"]/g, "");
+          const safeTitle = rawTitle.replace(/['"]/g, "");
+          
+          // On nettoie le titre pour MAL et on échappe les quotes pour la fonction JS
+          const cleanTitle = extractAnimeTitle(rawTitle);
+          const safeCleanTitle = cleanTitle.replace(/['"\\]/g, " ");
 
           html += `
-            <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-rose-500/50 transition group shadow-md flex flex-col">
-              <div class="relative aspect-video bg-slate-950">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden group shadow-md flex flex-col">
+              <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="relative aspect-video bg-slate-950 cursor-pointer">
                 <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
                 <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
                   <div class="w-12 h-12 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
@@ -558,8 +602,15 @@
                 <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-rose-400 border border-slate-800">PV Officiel</div>
               </div>
               <div class="p-3 flex-1 flex flex-col justify-between">
-                <h3 class="font-bold text-slate-100 text-xs line-clamp-2 mb-1">${title}</h3>
-                <p class="text-[10px] text-slate-400"><i class="fa-brands fa-youtube text-rose-500 mr-1"></i>${channel}</p>
+                <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="cursor-pointer">
+                  <h3 class="font-bold text-slate-100 text-xs line-clamp-2 mb-1 hover:text-rose-400 transition">${rawTitle}</h3>
+                  <p class="text-[10px] text-slate-400"><i class="fa-brands fa-youtube text-rose-500 mr-1"></i>${channel}</p>
+                </div>
+                
+                <button onclick="searchAndOpenAnime('${safeCleanTitle}')" class="mt-3 w-full bg-slate-950 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-slate-800 hover:border-indigo-500 text-[10px] font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+                  <i class="fa-solid fa-book-open"></i> Fiche de l'anime (MAL)
+                </button>
+
               </div>
             </div>
           `;
@@ -571,7 +622,7 @@
       }
     }
 
-    function openVideoModal(ytId, title, malId = null) {
+    function openVideoModal(ytId, title) {
       const modalBody = document.getElementById('modal-body');
       document.getElementById('modal').classList.remove('hidden');
 
@@ -581,7 +632,6 @@
           <div class="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
             <iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1" class="w-full h-full" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
           </div>
-          ${malId ? `<button onclick="closeModal(); openModal(${malId});" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-solid fa-circle-info"></i> Voir la fiche détaillée</button>` : ''}
         </div>
       `;
     }
