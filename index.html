@@ -238,7 +238,7 @@
         top: `Top ${labelType}`, 
         airing: appMode === 'anime' ? 'Saison Actuelle' : 'Top Publiés', 
         watchlist: 'Ma Liste', 
-        trailers: 'Derniers Trailers & PV',
+        trailers: 'Trailers (Saison Actuelle)',
         random: `${appMode === 'anime' ? 'Anime' : 'Manga'} Aléatoire`, 
         profile: 'Mon Profil' 
       };
@@ -458,50 +458,50 @@
       container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement des trailers...</p></div>`;
       
       try {
-        const res = await fetch('https://api.jikan.moe/v4/watch/promotions');
+        // Changement de l'API pour récupérer les trailers directement depuis les animes de la saison en cours (beaucoup plus stable)
+        const res = await fetch('https://api.jikan.moe/v4/seasons/now?limit=25');
         
         if (!res.ok) {
           throw new Error(`Erreur API (${res.status})`);
         }
 
         const json = await res.json();
-        const trailers = json.data || [];
+        const animeList = json.data || [];
+        
+        // On filtre pour ne garder que ceux qui ont un trailer YouTube
+        const trailers = animeList.filter(item => item.trailer && item.trailer.youtube_id);
 
         if (trailers.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer disponible.</p>`;
+          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer disponible pour le moment.</p>`;
           return;
         }
 
         let html = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
-        trailers.slice(0, 30).forEach(item => {
-          const ytId = item.trailer?.youtube_id;
-          const thumb = item.trailer?.images?.maximum_image_url || item.entry?.images?.jpg?.large_image_url;
-          const title = item.entry?.title || 'Anime';
-          const trailerTitle = item.title || 'PV / Trailer';
+        trailers.forEach(item => {
+          const ytId = item.trailer.youtube_id;
+          const thumb = item.trailer.images?.maximum_image_url || item.images?.jpg?.large_image_url || '';
+          const title = item.title || 'Anime';
           const safeTitle = title.replace(/['"]/g, "");
 
-          if (ytId) {
-            html += `
-              <div onclick="openVideoModal('${ytId}', '${safeTitle}', ${item.entry?.mal_id})" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition group shadow-md">
-                <div class="relative aspect-video bg-slate-950">
-                  <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
-                  <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
-                    <div class="w-12 h-12 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
-                  </div>
-                  <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-indigo-400 border border-slate-800">PV Offi</div>
+          html += `
+            <div onclick="openVideoModal('${ytId}', '${safeTitle}', ${item.mal_id})" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition group shadow-md">
+              <div class="relative aspect-video bg-slate-950">
+                <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
+                <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
+                  <div class="w-12 h-12 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
                 </div>
-                <div class="p-3">
-                  <h3 class="font-bold text-slate-100 text-xs line-clamp-1">${title}</h3>
-                  <p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${trailerTitle}</p>
-                </div>
+                <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-indigo-400 border border-slate-800">Saison Actuelle</div>
               </div>
-            `;
-          }
+              <div class="p-3">
+                <h3 class="font-bold text-slate-100 text-xs line-clamp-2">${title}</h3>
+              </div>
+            </div>
+          `;
         });
         html += `</div>`;
         container.innerHTML = html;
       } catch(e) {
-        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">L'API publique est surchargée.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Jikan limite les requêtes pour protéger ses serveurs. Veuillez patienter quelques instants et réessayer.</p><button onclick="loadTrailers()" class="mt-6 bg-indigo-600 text-white text-xs font-bold py-2 px-6 rounded-xl hover:bg-indigo-500 transition shadow">Réessayer</button></div>`;
+        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Impossible de charger les trailers.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Détail de l'erreur : ${e.message}</p><button onclick="loadTrailers()" class="mt-6 bg-indigo-600 text-white text-xs font-bold py-2 px-6 rounded-xl hover:bg-indigo-500 transition shadow">Réessayer</button></div>`;
       }
     }
 
