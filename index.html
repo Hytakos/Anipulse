@@ -105,7 +105,7 @@
       <i class="fa-solid fa-bookmark text-base"></i><span class="text-[9px] font-medium">Liste</span>
     </button>
     <button onclick="setTab('trailers')" id="nav-trailers" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
-      <i class="fa-solid fa-video text-base"></i><span class="text-[9px] font-medium">Trailers</span>
+      <i class="fa-brands fa-youtube text-base"></i><span class="text-[9px] font-medium">Trailers</span>
     </button>
     <button onclick="setTab('random')" id="nav-random" class="flex flex-col items-center gap-1 py-1 px-1.5 text-slate-400">
       <i class="fa-solid fa-dice text-base"></i><span class="text-[9px] font-medium">Aléatoire</span>
@@ -125,6 +125,8 @@
   <script>
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
+    const YOUTUBE_API_KEY = 'AIzaSyB2a7_x_3XT-cjryOtuPFC7P-ia3MLUz8Y'; // <-- REMPLACE CECI PAR TA CLÉ GOOGLE CLOUD
+    
     let appMode = 'anime';
     let currentTab = 'top';
     let currentStatusFilter = 'all';
@@ -238,7 +240,7 @@
         top: `Top ${labelType}`, 
         airing: appMode === 'anime' ? 'Saison Actuelle' : 'Top Publiés', 
         watchlist: 'Ma Liste', 
-        trailers: 'Trailers (Saison Actuelle)',
+        trailers: 'Derniers Trailers (YouTube)',
         random: `${appMode === 'anime' ? 'Anime' : 'Manga'} Aléatoire`, 
         profile: 'Mon Profil' 
       };
@@ -475,60 +477,55 @@
 
     async function loadTrailers() {
       const container = document.getElementById('main-content');
-      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Chargement des trailers...</p></div>`;
+
+      if (YOUTUBE_API_KEY === 'TA_CLE_API_ICI' || !YOUTUBE_API_KEY) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center py-20 text-center">
+            <i class="fa-solid fa-key text-4xl text-rose-500 mb-4"></i>
+            <p class="text-rose-400 font-bold text-sm px-4">Clé API YouTube manquante</p>
+            <p class="text-xs text-slate-400 px-6 max-w-sm mt-2">Remplace 'TA_CLE_API_ICI' par ta vraie clé Google Cloud à la ligne 151 du fichier index.html.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="flex flex-col items-center py-20"><div class="w-8 h-8 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mb-3"></div><p class="text-slate-400 text-xs">Recherche sur YouTube (Tri par date)...</p></div>`;
       
       try {
-        const query = `
-          query {
-            Page(page: 1, perPage: 40) {
-              media(type: ANIME, status: RELEASING, sort: TRENDING_DESC) {
-                idMal
-                title { romaji }
-                coverImage { extraLarge }
-                trailer { id site thumbnail }
-              }
-            }
-          }
-        `;
-
-        const res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ query })
-        });
+        const query = encodeURIComponent('anime PV OR trailer "KADOKAWA" OR "Aniplex" OR "TOHO animation"');
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&order=date&type=video&maxResults=18&relevanceLanguage=ja&key=${YOUTUBE_API_KEY}`);
         
         if (!res.ok) {
-          throw new Error(`Erreur API (${res.status})`);
+          throw new Error(`Erreur API YouTube (${res.status})`);
         }
 
         const json = await res.json();
-        const animeList = json.data.Page.media || [];
-        
-        const trailers = animeList.filter(item => item.trailer && item.trailer.site === "youtube" && item.trailer.id);
+        const trailers = json.items || [];
 
         if (trailers.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer disponible pour le moment.</p>`;
+          container.innerHTML = `<p class="text-slate-400 text-center py-10">Aucun trailer récent trouvé.</p>`;
           return;
         }
 
         let html = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
         trailers.forEach(item => {
-          const ytId = item.trailer.id;
-          const thumb = item.trailer.thumbnail || item.coverImage?.extraLarge || '';
-          const title = item.title.romaji || 'Anime';
+          const ytId = item.id.videoId;
+          const thumb = item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url;
+          const title = item.snippet.title;
+          const channel = item.snippet.channelTitle;
           const safeTitle = title.replace(/['"]/g, "");
 
           html += `
-            <div onclick="openVideoModal('${ytId}', '${safeTitle}', ${item.idMal || 'null'})" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition group shadow-md">
+            <div onclick="openVideoModal('${ytId}', '${safeTitle}')" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-rose-500/50 transition group shadow-md flex flex-col">
               <div class="relative aspect-video bg-slate-950">
                 <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
                 <div class="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition flex items-center justify-center">
-                  <div class="w-12 h-12 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
+                  <div class="w-12 h-12 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition"><i class="fa-solid fa-play text-lg ml-1"></i></div>
                 </div>
-                <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-indigo-400 border border-slate-800">Saison Actuelle</div>
+                <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-rose-400 border border-slate-800">Nouveau</div>
               </div>
-              <div class="p-3">
-                <h3 class="font-bold text-slate-100 text-xs line-clamp-2">${title}</h3>
+              <div class="p-3 flex-1 flex flex-col justify-between">
+                <h3 class="font-bold text-slate-100 text-xs line-clamp-2 mb-1">${title}</h3>
+                <p class="text-[10px] text-slate-400"><i class="fa-brands fa-youtube text-rose-500 mr-1"></i>${channel}</p>
               </div>
             </div>
           `;
@@ -536,11 +533,11 @@
         html += `</div>`;
         container.innerHTML = html;
       } catch(e) {
-        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Impossible de charger les trailers.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Détail de l'erreur : ${e.message}</p><button onclick="loadTrailers()" class="mt-6 bg-indigo-600 text-white text-xs font-bold py-2 px-6 rounded-xl hover:bg-indigo-500 transition shadow">Réessayer</button></div>`;
+        container.innerHTML = `<div class="flex flex-col items-center py-20 text-center"><i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i><p class="text-rose-400 font-bold text-sm px-4 mb-2">Connexion à YouTube échouée.</p><p class="text-xs text-slate-400 px-6 max-w-sm">Vérifie ta clé API, que l'API "YouTube Data v3" est bien activée et tes restrictions sur Google Cloud.</p></div>`;
       }
     }
 
-    function openVideoModal(ytId, title, malId) {
+    function openVideoModal(ytId, title, malId = null) {
       const modalBody = document.getElementById('modal-body');
       document.getElementById('modal').classList.remove('hidden');
 
