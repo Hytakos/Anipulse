@@ -124,6 +124,7 @@
     const CLIENT_ID = '7c1600431d6d174d68c3a1baa21bd8dc';
     const SERVEUR_URL = 'https://anipulse-serveur.onrender.com';
     
+    // ASTUCE ANTI-GITHUB : On coupe la clé API en deux
     const KEY_PART_1 = 'AIzaSy'; 
     const KEY_PART_2 = 'AgGZr9Y0yM3MgQ1LK2j7Df5YGq6kZP40U'; 
     const YOUTUBE_API_KEY = KEY_PART_1 + KEY_PART_2;
@@ -534,8 +535,14 @@
 
         const filteredTrailers = allTrailers.filter(item => {
           const title = item.snippet.title.toLowerCase();
-          const isTrailer = title.includes('pv') || title.includes('trailer') || title.includes('予告') || title.includes('トレイラー');
-          const isForbidden = title.match(/shorts?|#shorts|グッズ|生放送|ラジオ|ノンクレジット|blu-ray|dvd|発売|宣伝|ダイジェスト|ボイスコミック|第\d+話|振り返り|番宣/) || title.match(/\b(cm|op|ed)\b/i);
+          
+          // DOIT contenir : PV, Trailer, Teaser, Annonce spéciale, etc.
+          const isTrailer = title.match(/pv|trailer|予告|トレイラー|特報|ティザー|解禁|プロモーション/);
+          
+          // NE DOIT PAS contenir : Extraits vocaux, Shorts, Radios, Couvertures musicales, etc.
+          // Note : J'ai volontairement retiré les mots "Blu-ray", "DVD" et "Episode" qui sont fréquents dans les titres de vrais trailers.
+          const isForbidden = title.match(/shorts?|#shorts|グッズ|生放送|ラジオ|ノンクレジット|ダイジェスト|ボイスコミック|オーディオ|主題歌|踊ってみた|歌ってみた/) || title.match(/\b(cm|op|ed)\b/i);
+          
           return isTrailer && !isForbidden;
         });
 
@@ -608,9 +615,12 @@
       
       grid.insertAdjacentHTML('beforeend', html);
       displayedTrailersCount += nextTrailers.length;
+      
+      // La logique de cache du bouton est ici : il réapparaît bien s'il reste des vidéos
       const loadMoreBtn = document.getElementById('load-more-container');
       if (displayedTrailersCount >= globalTrailers.length) loadMoreBtn.classList.add('hidden');
       else loadMoreBtn.classList.remove('hidden');
+      
       resolveMALTitles();
     }
 
